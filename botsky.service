@@ -1,0 +1,13 @@
+[Unit]
+Description=a discord bot
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/wesley/botsky/bot.py
+Environment="DISCORDTOKEN=..."
+User=wesley
+Restart=always
+RestartSec=5

@@ -1,0 +1,4 @@
+# botsky
+
+A discord bot.
+
