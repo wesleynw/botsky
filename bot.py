@@ -88,9 +88,9 @@ async def on_raw_reaction_remove(payload):
 @tasks.loop(minutes=15)
 async def change_presense():
     activities = [
-        discord.Game('with Joel ;)'), discord.Activity(name='MS Paint', type=discord.ActivityType.competing), discord.Game('violin'), 
+        discord.Game('with myself ;)'), discord.Activity(name='MS Paint', type=discord.ActivityType.competing), discord.Game('violin'), 
         discord.Activity(name='you', type=discord.ActivityType.listening), discord.Activity(name='100 gecs on Spotify', type=discord.ActivityType.listening),
-        discord.Game('GTA in real life'), discord.Activity(name='A24 films', type=discord.ActivityType.watching), discord.Activity(name='@Wesley', type=discord.ActivityType.listening),
+        discord.Game('GTA in real life'), discord.Activity(name='A24 films', type=discord.ActivityType.watching), discord.Activity(name='@Wesley (my maker)', type=discord.ActivityType.listening),
         discord.Game('Sims (Discord Bot DLC)')]
     await bot.change_presence(activity=choice(activities))
 
@@ -296,11 +296,12 @@ async def leaderboard(ctx, *args):
             oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
             td = oldest_mesg[0].created_at
     
-        message_hist = await counting_channel.history(limit=None, after=td).flatten()
+        # message_hist = await counting_channel.history(limit=None, after=td).flatten()
         embed = discord.Embed(color=embed_color)
         embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
     
-        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, message_hist, (datetime.utcnow() - td).total_seconds()/3600)
+        # ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, message_hist, (datetime.utcnow() - td).total_seconds()/3600)
+        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, counting_channel, td)
 
         for i in range(min(5, len(ranks_and_efficiency))):
             embed.add_field(name=f"***{i+1}*** {ranks_and_efficiency[i][1].display_name}", value=f"efficiency: **{ranks_and_efficiency[i][2]}%**", inline=False)
@@ -360,8 +361,8 @@ async def stats(ctx, *args):
         else:
             member = ctx.author
 
-        message_hist = await counting_channel.history(limit=None, after=td).flatten()
-        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, message_hist, (datetime.utcnow() - td).total_seconds()/3600)
+        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, counting_channel, td)
+
         for entry in ranks_and_efficiency:
             if entry[1] == member:
                 ranks_and_efficiency = entry
@@ -389,17 +390,23 @@ async def story(ctx, arg : int = 1):
         await ctx.send("The " + text.split('$asdf$')[arg])
         
 
+@bot.command()
+async def dm_owner(ctx, *args):
+    member = bot.get_user(184880932476420097)
+    await member.send(' '.join(args))
 
 ### FUNCTIONS
-async def calc_ranks_and_efficiency(members, message_hist, interval : int):
-    # inverval is elapsed hours in message interval
+async def calc_ranks_and_efficiency(members, counting_channel, td):
+    message_hist = await counting_channel.history(limit=None, after=td).flatten()
+    # .slowmode_delay is in seconds
+    possible_counts_interval = (datetime.utcnow() - td).total_seconds() / counting_channel.slowmode_delay
     efficiency_stats = []
     for member in members:
         counter = 0
         for message in message_hist:
             if message.author == member:
                 counter += 1
-        efficiency_stats.append([member, round(counter / interval * 100, 2)])
+        efficiency_stats.append([member, round(counter / possible_counts_interval * 100, 2)])
     
     # sort efficiencies low to high
     efficiency_stats = sorted(efficiency_stats, key=lambda x: x[1], reverse=True)
