@@ -2,8 +2,11 @@ import os
 from emoji import demojize
 from random import choice
 import asyncio
+import logging 
 from re import sub
 from datetime import datetime, timedelta
+
+logging.basicConfig(level=logging.INFO)
 
 import discord
 from discord.utils import get
