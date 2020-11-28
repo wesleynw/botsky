@@ -11,6 +11,8 @@ from discord.utils import get
 from discord.ext import commands, tasks
 from pymongo import MongoClient
 
+logging.basicConfig(level=logging.INFO)
+
 token = os.environ.get('DISCORDTOKEN')
 intents = discord.Intents().all()
 bot = commands.Bot(command_prefix='$', intents=intents)
