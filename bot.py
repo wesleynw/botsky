@@ -3,11 +3,9 @@ from emoji import demojize
 from random import choice
 import asyncio
 import logging 
+import traceback
 from re import sub
 from datetime import datetime, timedelta
-
-logging.basicConfig(level=logging.INFO)
-
 import discord
 from discord.utils import get
 from discord.ext import commands, tasks
@@ -29,11 +27,9 @@ async def on_ready():
     count_hourly.start()
     # daily_leaderboard.start()
 
-# @bot.event
-# async def on_member_join(member):
-#     guild = member.guild
-#     role = guild.get_role(780289692918087690)
-#     await member.add_roles(role)
+@bot.event 
+async def on_error(event, *args, **kwargs):
+    logging.warning(traceback.format_exc())
 
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -60,7 +56,6 @@ async def on_raw_reaction_add(payload):
             await member.remove_roles(*[x for x in color_roles if x.name != wanted_role.name and x.name in current_roles])
             await member.add_roles(wanted_role)
             
-
 @bot.event
 async def on_raw_reaction_remove(payload):
     rules_channel = bot.get_channel(780288110281621505)
