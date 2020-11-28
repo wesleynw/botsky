@@ -22,7 +22,7 @@ db = db_client["discord-db"]
 ## EVENTS
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
+    logging.info(f'{bot.user.name} has connected to Discord!')
     change_presense.start()
     count_hourly.start()
     # daily_leaderboard.start()
