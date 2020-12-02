@@ -27,7 +27,7 @@ async def on_ready():
     logging.info(f'{bot.user.name} has connected to Discord!')
     change_presense.start()
     count_hourly.start()
-    daily_leaderboard.start()
+    # daily_leaderboard.start()
 
 @bot.event 
 async def on_error(event, *args, **kwargs):
