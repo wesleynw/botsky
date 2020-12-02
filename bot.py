@@ -27,7 +27,7 @@ async def on_ready():
     logging.info(f'{bot.user.name} has connected to Discord!')
     change_presense.start()
     count_hourly.start()
-    # daily_leaderboard.start()
+    daily_leaderboard.start()
 
 @bot.event 
 async def on_error(event, *args, **kwargs):
@@ -117,17 +117,16 @@ async def count_hourly():
             pass
 
 @tasks.loop(hours=24)
-async def daily_leaderboard():
-    
+async def daily_leaderboard():  
     async def wait_until(dt):
         # sleep until the specified datetime
         now = datetime.utcnow()
         await asyncio.sleep((dt - now).total_seconds())
 
     # figured out how to add minutes to this too to prevent repetition
-    hour_utc = 6
+    hour_utc = 8
     # check timing
-    if datetime.utcnow().hour != hour_utc: #or datetime.utcnow().minute != 0:
+    if datetime.utcnow().hour != hour_utc or datetime.utcnow().minute != 0:
         if datetime.utcnow().hour < hour_utc:
             logging.info(f"Sleeping until {datetime.utcnow().replace(hour=hour_utc, minute=0, second=0)}")
             await wait_until(datetime.utcnow().replace(hour=hour_utc, minute=0, second=0))
@@ -136,12 +135,14 @@ async def daily_leaderboard():
             logging.info(f"Sleeping until {datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0)}")
             await wait_until(datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0))
 
-    
+    logging.info('Starting daily leaderboard...')
+
     for guild in bot.guilds:
         collection = db[str(guild.id)]
         try: 
             counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-            if counting_channel == None:
+            announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
+            if counting_channel == None or announcements_channel == None:
                 return
         except:
             logging.info("Exception in daily_leaderboard")
@@ -149,12 +150,8 @@ async def daily_leaderboard():
 
         # retrieve and send last week's stats
         # need to calculate previous ranks and efficiency now, defaults to oldest_first=True 
-        # calc_ranks_and_efficiency(members, counting_channel, td)
-        message_history = await counting_channel.history(limit=None, after=datetime.utcnow()-timedelta(days=1)).flatten()
-        ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, message_history, 24)
-        prev_message_history = await counting_channel.history(limit=None, after=datetime.utcnow()-timedelta(days=2), before=datetime.utcnow()-timedelta(days=1)).flatten()
-        prev_ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, prev_message_history, 24)
-
+        ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, after=datetime.utcnow()-timedelta(days=1))
+        prev_ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, after=datetime.utcnow()-timedelta(days=2), before=datetime.utcnow()-timedelta(days=1))
         embed = discord.Embed(color=embed_color)
         embed.add_field(name=f'Daily Leaderboard 💯', value='___', inline=False)
 
@@ -186,8 +183,7 @@ async def daily_leaderboard():
                 change_in_rank = ''
             embed.add_field(name=f'**{place}**. {ranks_and_efficiency[i][1].display_name}', value=f'{direction} {change_in_rank} --- efficiency: **{ranks_and_efficiency[i][2]}%**', inline=False)
 
-        channel = bot.get_channel(769742805786165258)
-        await channel.send(embed=embed)
+        await announcements_channel.send(embed=embed)
 
 
 
@@ -273,7 +269,7 @@ async def link(ctx, *args):
         try:
             announcements_channel = int(sub("[^0-9]", "", args[1]))
         except:
-            story_channel = None
+            announcements_channel = None
         if bot.get_channel(announcements_channel) is None:
             await ctx.send("This channel doesn't exist!")
             return 
@@ -417,10 +413,10 @@ async def dm_owner(ctx, *args):
     await member.send(' '.join(args))
 
 ### FUNCTIONS
-async def calc_ranks_and_efficiency(members, counting_channel, td):
-    message_hist = await counting_channel.history(limit=None, after=td).flatten()
+async def calc_ranks_and_efficiency(members, counting_channel, after, before = datetime.utcnow()):
+    message_hist = await counting_channel.history(limit=None, after=after, before=before).flatten()
     # .slowmode_delay is in seconds
-    possible_counts_interval = (datetime.utcnow() - td).total_seconds() / counting_channel.slowmode_delay
+    possible_counts_interval = (before - after).total_seconds() / counting_channel.slowmode_delay
     efficiency_stats = []
     for member in members:
         counter = 0
