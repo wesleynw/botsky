@@ -126,7 +126,7 @@ async def daily_leaderboard():
     # figured out how to add minutes to this too to prevent repetition
     hour_utc = 8
     # check timing
-    if datetime.utcnow().hour != hour_utc: # or datetime.utcnow().minute != 0:
+    if datetime.utcnow().hour != hour_utc or datetime.utcnow().minute != 0:
         if datetime.utcnow().hour < hour_utc:
             logging.info(f"Sleeping until {datetime.utcnow().replace(hour=hour_utc, minute=0, second=0)}")
             await wait_until(datetime.utcnow().replace(hour=hour_utc, minute=0, second=0))
