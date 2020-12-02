@@ -27,7 +27,7 @@ async def on_ready():
     logging.info(f'{bot.user.name} has connected to Discord!')
     change_presense.start()
     count_hourly.start()
-    # daily_leaderboard.start()
+    daily_leaderboard.start()
 
 @bot.event 
 async def on_error(event, *args, **kwargs):
@@ -118,10 +118,23 @@ async def count_hourly():
 
 @tasks.loop(hours=24)
 async def daily_leaderboard():
+    
+    async def wait_until(dt):
+        # sleep until the specified datetime
+        now = datetime.utcnow()
+        await asyncio.sleep((dt - now).total_seconds())
+
     # figured out how to add minutes to this too to prevent repetition
-    if datetime.utcnow().hour != 8:
-        await asyncio.sleep((60-datetime.utcnow().minute)*60)
-        await asyncio.sleep((24 - abs(datetime.utcnow().hour - 8)*60))
+    hour_utc = 6
+    # check timing
+    if datetime.utcnow().hour != hour_utc: #or datetime.utcnow().minute != 0:
+        if datetime.utcnow().hour < hour_utc:
+            logging.info(f"Sleeping until {datetime.utcnow().replace(hour=hour_utc, minute=0, second=0)}")
+            await wait_until(datetime.utcnow().replace(hour=hour_utc, minute=0, second=0))
+            
+        else:
+            logging.info(f"Sleeping until {datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0)}")
+            await wait_until(datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0))
 
     
     for guild in bot.guilds:
@@ -131,13 +144,15 @@ async def daily_leaderboard():
             if counting_channel == None:
                 return
         except:
+            logging.info("Exception in daily_leaderboard")
             return
 
         # retrieve and send last week's stats
         # need to calculate previous ranks and efficiency now, defaults to oldest_first=True 
+        # calc_ranks_and_efficiency(members, counting_channel, td)
         message_history = await counting_channel.history(limit=None, after=datetime.utcnow()-timedelta(days=1)).flatten()
         ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, message_history, 24)
-        prev_message_history = await counting_channel.history(limit=None, before=datetime.utcnow()-timedelta(days=1), after=datetime.utcnow()-timedelta(days=2)).flatten()
+        prev_message_history = await counting_channel.history(limit=None, after=datetime.utcnow()-timedelta(days=2), before=datetime.utcnow()-timedelta(days=1)).flatten()
         prev_ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, prev_message_history, 24)
 
         embed = discord.Embed(color=embed_color)
@@ -161,8 +176,7 @@ async def daily_leaderboard():
             elif i == 2:
                 place = ":third_place:"
             prev_member = search(prev_ranks_and_efficiency, ranks_and_efficiency[i][1])
-            change_in_rank = ranks_and_efficiency[i][0] - prev_ranks_and_efficiency[prev_member[0]][0]
-            print(change_in_rank)
+            change_in_rank = prev_ranks_and_efficiency[prev_member[0]][0] - ranks_and_efficiency[i][0]
             direction = ':record_button:'
             if change_in_rank > 0:
                 direction = ':arrow_up:'
@@ -214,6 +228,8 @@ async def on_message(message):
 
         if latest_count != latest_count_2+1:
             mesg = choice(on_error_messages).format(message.author.mention)
+            dumbass = get(message.guild.roles, name='dumbass')
+            await message.author.add_roles(dumbass)
             await counting_channel.send(mesg, delete_after=10)
 
 
@@ -304,7 +320,7 @@ async def leaderboard(ctx, *args):
         ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, counting_channel, td)
 
         for i in range(min(5, len(ranks_and_efficiency))):
-            embed.add_field(name=f"***{i+1}*** {ranks_and_efficiency[i][1].display_name}", value=f"efficiency: **{ranks_and_efficiency[i][2]}%**", inline=False)
+            embed.add_field(name=f"***{i+1}***. {ranks_and_efficiency[i][1].display_name}", value=f"efficiency: **{ranks_and_efficiency[i][2]}%**", inline=False)
 
         await ctx.send(embed=embed)
 
@@ -387,7 +403,12 @@ async def story(ctx, arg : int = 1):
             else: 
                 text += '$asdf$'
         # TODO: fix for if the number it out of range
-        await ctx.send("The " + text.split('$asdf$')[arg])
+        if len(text) > 2000:
+            await ctx.send("The " + text.split('$asdf$')[arg][:2000])
+            await ctx.send(text.split('$asdf$'[arg][2000:]))
+        else:
+            await ctx.send("The " + text.split('$asdf$')[arg])
+        
         
 
 @bot.command()
