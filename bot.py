@@ -124,7 +124,7 @@ async def daily_leaderboard():
         await asyncio.sleep((dt - now).total_seconds())
 
     # figured out how to add minutes to this too to prevent repetition
-    hour_utc = 8
+    hour_utc = 5
     # check timing
     if datetime.utcnow().hour != hour_utc or datetime.utcnow().minute != 0:
         if datetime.utcnow().hour < hour_utc:
