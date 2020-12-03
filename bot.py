@@ -225,7 +225,8 @@ async def on_message(message):
         if latest_count != latest_count_2+1:
             mesg = choice(on_error_messages).format(message.author.mention)
             await counting_channel.send(mesg, delete_after=10)
-            await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
+            if 'dumbass' not in [x.name for x in message.author.roles]:
+                await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
 
 
 
