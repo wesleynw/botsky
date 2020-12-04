@@ -3,6 +3,7 @@ from emoji import demojize
 from random import choice
 import asyncio
 import logging 
+import traceback
 from re import sub
 from datetime import datetime, timedelta
 import discord
