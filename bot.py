@@ -3,7 +3,6 @@ from emoji import demojize
 from random import choice
 import asyncio
 import logging 
-import traceback
 from re import sub
 from datetime import datetime, timedelta
 import discord
@@ -118,22 +117,8 @@ async def count_hourly():
 
 @tasks.loop(hours=24)
 async def daily_leaderboard():  
-    async def wait_until(dt):
-        # sleep until the specified datetime
-        now = datetime.utcnow()
-        await asyncio.sleep((dt - now).total_seconds())
-
-    # figured out how to add minutes to this too to prevent repetition
-    hour_utc = 5
-    # check timing
-    if datetime.utcnow().hour != hour_utc or datetime.utcnow().minute != 0:
-        if datetime.utcnow().hour < hour_utc:
-            logging.info(f"Sleeping until {datetime.utcnow().replace(hour=hour_utc, minute=0, second=0)}")
-            await wait_until(datetime.utcnow().replace(hour=hour_utc, minute=0, second=0))
-            
-        else:
-            logging.info(f"Sleeping until {datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0)}")
-            await wait_until(datetime.utcnow().replace(day=datetime.utcnow().day+1, minute=0))
+    # trigger everyday at 6UTC (22:00 PST)
+    await sleep_until_hour(6)
 
     logging.info('Starting daily leaderboard...')
 
@@ -380,7 +365,7 @@ async def stats(ctx, *args):
                 ranks_and_efficiency = entry
                 break
         await ctx.send(f"{interval} {member.mention} is ranked **#{entry[0]}** with an efficiency of **{entry[2]}%**")
-        
+     
 @bot.command()
 async def story(ctx, arg : int = 1):
     async with ctx.channel.typing():
@@ -403,17 +388,44 @@ async def story(ctx, arg : int = 1):
             await ctx.send("The " + text.split('$asdf$')[arg][:2000])
             await ctx.send(text.split('$asdf$'[arg][2000:]))
         else:
-            await ctx.send("The " + text.split('$asdf$')[arg])
-        
-        
+            await ctx.send("The " + text.split('$asdf$')[arg])     
 
 @bot.command()
 async def dm_owner(ctx, *args):
     member = bot.get_user(184880932476420097)
     await member.send(' '.join(args))
 
+
+# @bot.command()
+# # @commands.cooldown(1, 30, commands.BucketType.user)
+# async def quote(ctx):
+#     quote = (await ctx.channel.history(limit=2).flatten())[1]
+
+#     collection = db[str(ctx.guild.id)]
+#     collection.update_one({"quote_wall" : {'$exists' : True}}, {'$set' : {str(quote.author.id) : quote.content}}, upsert=True)
+
+# @bot.command()
+# async def birthday(ctx, arg):
+#     try:
+#         b = arg.split('/')
+#         mm = int(sub("[^0-9]", "", b[0]))
+#         dd = int(sub("[^0-9]", "", b[1]))
+#         if mm not in range(1,13) or dd not in range(1,32):
+#             raise ValueError 
+#     except ValueError:
+#         await ctx.send('The birthday you entered was invalid, please enter it in the format MM/DD.')
+#         return 
+#     collection = db[str(ctx.guild.id)]
+#     # ctx.author.id can provide a Member or User object depending on if in server or DM
+#     collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
+
+
+
+
 ### FUNCTIONS
-async def calc_ranks_and_efficiency(members, counting_channel, after, before = datetime.utcnow()):
+async def calc_ranks_and_efficiency(members, counting_channel, after, before=None):
+    if before is None:
+        before = datetime.utcnow()
     message_hist = await counting_channel.history(limit=None, after=after, before=before).flatten()
     # .slowmode_delay is in seconds
     possible_counts_interval = (before - after).total_seconds() / counting_channel.slowmode_delay
@@ -433,8 +445,19 @@ async def calc_ranks_and_efficiency(members, counting_channel, after, before = d
         ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1]])
     return ranks_and_efficiency
 
+async def sleep_until_hour(hour_utc : int):
+    # sleep until the specified datetime
+    now = datetime.utcnow()
+    if now.hour != hour_utc or now.minute != 0:
+        if now.hour < hour_utc:
+            wait_until = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
+            await asyncio.sleep((wait_until - now).total_seconds())
+        else:
+            wait_until = now.replace(day=now.day+1, hour=hour_utc, minute=0, second=0, microsecond=0)
+            await asyncio.sleep((wait_until - now).total_seconds())
 
-        
+
+
 
 ### RUN
 bot.run(token)
