@@ -22,7 +22,7 @@ embed_color = 0x5482f7
 db_client = MongoClient('localhost',27017)
 db = db_client["discord-db"]
 
-with open('questions.json') as f:
+with open('/home/wesley/botsky/questions.json') as f:
     questions = json.load(f)
 
 ## EVENTS
