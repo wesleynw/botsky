@@ -1,6 +1,7 @@
 import os
+import json
 from emoji import demojize
-from random import choice
+from random import choice, random
 import asyncio
 import logging 
 import traceback
@@ -20,6 +21,9 @@ embed_color = 0x5482f7
 
 db_client = MongoClient('localhost',27017)
 db = db_client["discord-db"]
+
+with open('questions.json') as f:
+    questions = json.load(f)
 
 ## EVENTS
 @bot.event
@@ -179,17 +183,20 @@ async def daily_leaderboard():
 async def on_message(message):
     # process all other commands first
     await bot.process_commands(message)
+    if message.author == bot.user:
+        return
 
-    # try to get counting channel
     try:
         collection = db[str(message.guild.id)]
         counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
     except Exception as e:
         print(e)
-        return
+        counting_channel = None
 
     # check if someone counted incorrectly in the counting channel
-    if message.channel == counting_channel and message.author != bot.user:
+    if message.channel == counting_channel:
+        # try to get counting channel
+        
         # for now, all messages need to contain the string 'fix your number'
         # TODO: find a better way to do this, if error message doesn't contain 'fix your number'
         on_error_messages = ["Hey {0}! You absolute dumbass! Do you not know how to count? Fix your number.",
@@ -213,6 +220,10 @@ async def on_message(message):
             await counting_channel.send(mesg, delete_after=10)
             if 'dumbass' not in [x.name for x in message.author.roles]:
                 await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
+    else:
+        if random() < 0.02:
+            await message.channel.send(message.author.mention+" "+choice(questions))
+
 
 
 
