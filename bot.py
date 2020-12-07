@@ -102,11 +102,22 @@ async def change_presense():
 @tasks.loop(hours=24)
 async def birthday_annoucements():
     # trigger every day at 9AM PST (17:00 UTC)
-    # await sleep_until_hour(17)
+    await sleep_until_hour(17)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
+        try:
+            announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
+            if announcements_channel == None:
+                return
+        except AttributeError:
+            return
+
         birthdays = collection.find_one({'birthdays' : {'$exists' : True}}).get('birthdays')
-        print(birthdays)
+        for k,v in birthdays.items():
+            if datetime.strptime(v, "%m/%d").replace(year=datetime.now().year).date() == datetime.today().date():
+                # TODO: change all instances of fetch_member to get_member (fetch member is an API call and is slower)
+                member = guild.get_member(int(k))
+                await announcements_channel.send(f"{guild.default_role} with a happy birthday to {member.mention}")
 
 
 
