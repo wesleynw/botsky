@@ -215,6 +215,13 @@ async def on_message(message):
     except Exception as e:
         print(e)
         counting_channel = None
+    
+    try:
+        collection = db[str(message.guild.id)]
+        story_channel = bot.get_channel(collection.find_one({'story_channel' : {'$exists' : True}}).get('story_channel'))
+    except Exception as e:
+        print(e)
+        story_channel = None
 
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
@@ -243,7 +250,7 @@ async def on_message(message):
             await counting_channel.send(mesg, delete_after=10)
             if 'dumbass' not in [x.name for x in message.author.roles]:
                 await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
-    else:
+    elif message.channel != story_channel:
         if random() < 0.05:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
