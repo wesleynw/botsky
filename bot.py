@@ -1,13 +1,13 @@
 import os
 import json
-from emoji import demojize
-from random import choice, random
 import asyncio
 import logging 
 import traceback
-from re import sub
-from datetime import datetime, timedelta
 import discord
+from re import sub
+from emoji import demojize
+from random import choice, random
+from datetime import datetime, timedelta
 from discord.utils import get
 from discord.ext import commands, tasks
 from pymongo import MongoClient
@@ -244,7 +244,7 @@ async def on_message(message):
             if 'dumbass' not in [x.name for x in message.author.roles]:
                 await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
     else:
-        if random() < 0.02:
+        if random() < 0.05:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
 
