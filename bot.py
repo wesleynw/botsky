@@ -453,6 +453,7 @@ async def birthday(ctx, arg):
     collection = db[str(ctx.guild.id)]
     # ctx.author.id can provide a Member or User object depending on if in server or DM
     collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
+    await ctx.send('Got it.')
 
 
 
