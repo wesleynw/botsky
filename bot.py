@@ -32,6 +32,7 @@ async def on_ready():
     change_presense.start()
     count_hourly.start()
     daily_leaderboard.start()
+    birthday_annoucements.start()
 
 @bot.event 
 async def on_error(event, *args, **kwargs):
@@ -97,6 +98,17 @@ async def change_presense():
         discord.Game('GTA in real life'), discord.Activity(name='A24 films', type=discord.ActivityType.watching), discord.Activity(name='@Wesley (my maker)', type=discord.ActivityType.listening),
         discord.Game('Sims (Discord Bot DLC)')]
     await bot.change_presence(activity=choice(activities))
+
+@tasks.loop(hours=24)
+async def birthday_annoucements():
+    # trigger every day at 9AM PST (17:00 UTC)
+    # await sleep_until_hour(17)
+    for guild in bot.guilds:
+        collection = db[str(guild.id)]
+        birthdays = collection.find_one({'birthdays' : {'$exists' : True}}).get('birthdays')
+        print(birthdays)
+
+
 
 @tasks.loop(hours=1)
 async def count_hourly():
@@ -416,20 +428,20 @@ async def dm_owner(ctx, *args):
 #     collection = db[str(ctx.guild.id)]
 #     collection.update_one({"quote_wall" : {'$exists' : True}}, {'$set' : {str(quote.author.id) : quote.content}}, upsert=True)
 
-# @bot.command()
-# async def birthday(ctx, arg):
-#     try:
-#         b = arg.split('/')
-#         mm = int(sub("[^0-9]", "", b[0]))
-#         dd = int(sub("[^0-9]", "", b[1]))
-#         if mm not in range(1,13) or dd not in range(1,32):
-#             raise ValueError 
-#     except ValueError:
-#         await ctx.send('The birthday you entered was invalid, please enter it in the format MM/DD.')
-#         return 
-#     collection = db[str(ctx.guild.id)]
-#     # ctx.author.id can provide a Member or User object depending on if in server or DM
-#     collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
+@bot.command()
+async def birthday(ctx, arg):
+    try:
+        b = arg.split('/')
+        mm = int(sub("[^0-9]", "", b[0]))
+        dd = int(sub("[^0-9]", "", b[1]))
+        if mm not in range(1,13) or dd not in range(1,32):
+            raise ValueError 
+    except ValueError:
+        await ctx.send('The birthday you entered was invalid, please enter it in the format MM/DD.')
+        return 
+    collection = db[str(ctx.guild.id)]
+    # ctx.author.id can provide a Member or User object depending on if in server or DM
+    collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
 
 
 
