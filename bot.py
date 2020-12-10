@@ -448,7 +448,7 @@ async def length(ctx, *args):
     if user.id == 184880932476420097:
            await ctx.send(f"{ctx.author.mention}'s cock length is 11 inches.") 
            return
-    await ctx.send(f"{ctx.author.mention}'s' cock length is {length} inches.")
+    await ctx.send(f"{user.mention}'s' cock length is {length} inches.")
 
 # @bot.command()
 # # @commands.cooldown(1, 30, commands.BucketType.user)
