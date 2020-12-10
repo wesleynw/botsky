@@ -444,7 +444,7 @@ async def length(ctx, *args):
     except:
         user = ctx.author
 
-    length = round(int(user.id / 10**17), 2)
+    length = round(user.id / 10**17, 1)
     if user.id == 184880932476420097:
            await ctx.send(f"{ctx.author.mention}'s cock length is 11 inches.") 
            return
