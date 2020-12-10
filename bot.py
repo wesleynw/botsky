@@ -437,6 +437,13 @@ async def dm_owner(ctx, *args):
     member = bot.get_user(184880932476420097)
     await member.send(' '.join(args))
 
+@bot.command()
+async def length(ctx):
+    length = round(int(ctx.author.id) / 10**17, 2)
+    if ctx.author.id == 184880932476420097:
+           await ctx.send(f"{ctx.author.mention} your cock length is 11 inches.") 
+           return
+    await ctx.send(f"{ctx.author.mention} your cock length is {length} inches.")
 
 # @bot.command()
 # # @commands.cooldown(1, 30, commands.BucketType.user)
