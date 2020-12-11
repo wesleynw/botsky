@@ -12,8 +12,6 @@ from discord.utils import get
 from discord.ext import commands, tasks
 from pymongo import MongoClient
 
-logging.basicConfig(level=logging.INFO)
-
 token = os.environ.get('DISCORDTOKEN')
 intents = discord.Intents().all()
 bot = commands.Bot(command_prefix='$', intents=intents)
@@ -347,66 +345,55 @@ async def leaderboard(ctx, *args):
 
         await ctx.send(embed=embed)
 
-@bot.command(aliases=['rank'])
+@bot.command()
 async def stats(ctx, *args):
     async with ctx.channel.typing():
         try: 
             collection = db[str(ctx.guild.id)]
             counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-        except Exception as e:
-            print(e)
+        except Exception:
             await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
 
-        interval = 'Overall'
-        error_mesg = '🤡🤡🤡 Error! Arguments must be in the form **$stats** ***{user} {interval}*** where ***{user}*** is a valid username and ***{interval}*** is either **empty** (for all time), **daily**, **weekly**, or **monthly**.'
-        oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
-        td = oldest_mesg[0].created_at
-        if len(args) == 1:
-            try:
+        member = ctx.author
+        if len(args) != 0:
+            try: 
                 member = bot.get_user(int(sub("[^0-9]", "", args[0])))
             except:
-                member = ctx.author
-                if args[0] == 'daily':
-                    td = datetime.utcnow() - timedelta(days=1)
-                    interval = 'Today'
-                elif args[0] == 'weekly':
-                    td = datetime.utcnow() - timedelta(weeks=1)
-                    interval = 'This week'
-                elif args[0] == 'monthly':
-                    td = datetime.utcnow() - timedelta(weeks=4)
-                    interval = 'This month' 
-                else:
-                    await ctx.send(error_mesg)
-                    return
-        elif len(args) == 2:
-            try:
-                member = bot.get_user(int(sub("[^0-9]", "", args[0])))
-                if args[1] == 'daily':
-                    td = datetime.utcnow() - timedelta(days=1)
-                    interval = 'Today'
-                elif args[1] == 'weekly':
-                    td = datetime.utcnow() - timedelta(weeks=1)
-                    interval = 'This week'
-                elif args[1] == 'monthly':
-                    td = datetime.utcnow() - timedelta(weeks=4)
-                    interval = 'This month'
-                else:
-                    await ctx.send(error_mesg)
-                    return
-            except:
-                await ctx.send(error_mesg)
-                return
-        else:
-            member = ctx.author
+                pass
 
-        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, counting_channel, td)
+        
+        now = datetime.utcnow()
+        slowmode = counting_channel.slowmode_delay
+        counting_channel_history = await counting_channel.history(limit=None).flatten()
 
-        for entry in ranks_and_efficiency:
-            if entry[1] == member:
-                ranks_and_efficiency = entry
-                break
-        await ctx.send(f"{interval} {member.mention} is ranked **#{entry[0]}** with an efficiency of **{entry[2]}%**")
+        # returns in format: [member, rank, efficiency]
+        daily_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=1))
+        prev_daily_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=2), now - timedelta(days=1))
+        weekly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=1))
+        prev_weekly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=2), now - timedelta(weeks=1))
+
+        monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=4))
+        prev_monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=8), now - timedelta(weeks=4))
+
+
+        embed = discord.Embed(color=member.color)
+        embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
+
+        daily_direction = 'Up' if daily_stats[2] > prev_daily_stats[2] else 'Down'
+        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {daily_stats[2]}% from yesterday```"
+        embed.add_field(name="Daily - Ranked #"+str(daily_stats[1]), value=daily_bar)
+
+        weekly_direction = 'Up' if weekly_stats[2] > prev_weekly_stats[2] else 'Down'
+        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {weekly_stats[2]}% from last month```"
+        embed.add_field(name='Weekly - Ranked #'+str(weekly_stats[1]), value=weekly_bar)
+
+        monthly_direction = 'Up' if monthly_stats[2] > prev_monthly_stats[2] else 'Down'
+        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {monthly_stats[2]}% from last week```"
+        embed.add_field(name='Monthly - Ranked #'+str(monthly_stats[1]), value=monthly_bar)
+
+        await ctx.send(embed=embed)
+        
      
 @bot.command()
 async def story(ctx, arg : int = 1):
@@ -490,8 +477,6 @@ async def birthday(ctx, arg):
         
 
 
-
-
 ### FUNCTIONS
 async def calc_ranks_and_efficiency(members, counting_channel, after, before=None):
     if before is None:
@@ -514,6 +499,31 @@ async def calc_ranks_and_efficiency(members, counting_channel, after, before=Non
         # returns in format [ [rank, member, efficiency], [], [] ]
         ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1]])
     return ranks_and_efficiency
+
+# rewrite function to take counting history as an argument to lessen impact on api
+async def calculate_member_stats(members, req_member, channel_history, slowmode_delay, after, before=None):
+    if before is None:
+        before = datetime.utcnow()
+
+    channel_history = [x for x in channel_history if x.created_at > after and x.created_at < before]
+    # .slowmode_delay is in seconds
+    possible_counts_interval = (before - after).total_seconds() / slowmode_delay
+
+    stats = []
+    for member in members:
+        counter = 0
+        for message in channel_history:
+            if message.author == member:
+                counter +=1
+        stats.append([member, round(counter / possible_counts_interval * 100, 2)])
+
+    # sort efficiencies low to high
+    efficiency_stats = sorted(stats, key=lambda x: x[1], reverse=True)
+    for i,e in enumerate(efficiency_stats):
+        if e[0] == req_member:
+            # format: [member, rank, efficiency]
+            return [e[0], i+1, e[1]]
+
 
 async def sleep_until_hour(hour_utc : int):
     # sleep until the specified datetime
