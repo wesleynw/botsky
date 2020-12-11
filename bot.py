@@ -251,7 +251,7 @@ async def on_message(message):
             if 'dumbass' not in [x.name for x in message.author.roles]:
                 await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
     elif message.channel != story_channel:
-        if random() < 0.05:
+        if random() < 0.02:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
 
@@ -451,14 +451,6 @@ async def length(ctx, *args):
            return
     await ctx.send(f"{user.mention}'s {choice(dick_names)} length is {length} inches.")
 
-# @bot.command()
-# # @commands.cooldown(1, 30, commands.BucketType.user)
-# async def quote(ctx):
-#     quote = (await ctx.channel.history(limit=2).flatten())[1]
-
-#     collection = db[str(ctx.guild.id)]
-#     collection.update_one({"quote_wall" : {'$exists' : True}}, {'$set' : {str(quote.author.id) : quote.content}}, upsert=True)
-
 @bot.command()
 async def birthday(ctx, arg):
     try:
@@ -474,6 +466,28 @@ async def birthday(ctx, arg):
     # ctx.author.id can provide a Member or User object depending on if in server or DM
     collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
     await ctx.send('Got it.')
+
+# @bot.command()
+# async def penis(ctx, *args):
+#     collection = db[str(ctx.guild.id)]
+#     # create a penis if the member doesn't already have one
+#     if collection.find_one({"penis_data" : {str(ctx.author.id) : {'$exists' : True}}}) is None:
+#         collection.insert_one({"penis_data" : {str(ctx.author.id) : 
+#         {
+#             "length" : round(ctx.author.id / 10**17, 1),
+#             "sperm_count" : 150,
+#             "condom_ct" : 0,
+#             "horniness" : 10,
+#             "stamina" : 35,
+#             "stress" : 50,
+#             "vasectomy" : False
+#         }
+#         }})
+
+#     # display current penis stats
+#     if len(args) == 0:
+        
+        
 
 
 
