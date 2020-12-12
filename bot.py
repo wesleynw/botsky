@@ -210,7 +210,7 @@ async def on_message(message):
     if 'tuesday' in message.content.lower():
         await message.channel.send(file=discord.File('tueday.png'))
     if 'when?' in message.content.lower():
-        await message.channel.send('like when did they ask')
+        await message.channel.send('like when did I ask')
 
     try:
         collection = db[str(message.guild.id)]
