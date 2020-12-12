@@ -360,6 +360,7 @@ async def stats(ctx, *args):
             try: 
                 member = bot.get_user(int(sub("[^0-9]", "", args[0])))
             except:
+                await ctx.send("Something went wrong. Try running this command again.")
                 pass
 
         
@@ -381,15 +382,15 @@ async def stats(ctx, *args):
         embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
 
         daily_direction = 'Up' if daily_stats[2] > prev_daily_stats[2] else 'Down'
-        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {daily_stats[2]}% from yesterday```"
+        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {round(daily_stats[2]-prev_daily_stats[2], 2)}% from yesterday```"
         embed.add_field(name="Daily - Ranked #"+str(daily_stats[1]), value=daily_bar)
 
         weekly_direction = 'Up' if weekly_stats[2] > prev_weekly_stats[2] else 'Down'
-        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {weekly_stats[2]}% from last month```"
+        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {round(weekly_stats[2]-prev_weekly_stats[2], 2)}% from last week```"
         embed.add_field(name='Weekly - Ranked #'+str(weekly_stats[1]), value=weekly_bar)
 
         monthly_direction = 'Up' if monthly_stats[2] > prev_monthly_stats[2] else 'Down'
-        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {monthly_stats[2]}% from last week```"
+        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {round(monthly_stats[2]-prev_monthly_stats[2], 2)}% from last month```"
         embed.add_field(name='Monthly - Ranked #'+str(monthly_stats[1]), value=monthly_bar)
 
         await ctx.send(embed=embed)
