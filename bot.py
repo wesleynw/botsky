@@ -207,6 +207,9 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+    if 'tuesday' in message.content.lower():
+        await message.channel.send(file=discord.File('tueday.png'))
+
     try:
         collection = db[str(message.guild.id)]
         counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
