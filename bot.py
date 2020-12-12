@@ -210,21 +210,17 @@ async def on_message(message):
     try:
         collection = db[str(message.guild.id)]
         counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-    except Exception as e:
-        print(e)
+    except:
         counting_channel = None
     
     try:
         collection = db[str(message.guild.id)]
         story_channel = bot.get_channel(collection.find_one({'story_channel' : {'$exists' : True}}).get('story_channel'))
-    except Exception as e:
-        print(e)
+    except:
         story_channel = None
 
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
-        # try to get counting channel
-        
         # for now, all messages need to contain the string 'fix your number'
         # TODO: find a better way to do this, if error message doesn't contain 'fix your number'
         on_error_messages = ["Hey {0}! You absolute dumbass! Do you not know how to count? Fix your number.",
@@ -240,7 +236,7 @@ async def on_message(message):
             latest_count = int(sub("[^0-9]", "", latest_mesgs[0].content))
             latest_count_2 = int(sub("[^0-9]", "", latest_mesgs[1].content))
         except: 
-            print('handling exception in on_message')
+            logging.warning("handling exception in on_message")
             latest_count, latest_count_2 = 0, 0
 
         if latest_count != latest_count_2+1:
@@ -249,6 +245,7 @@ async def on_message(message):
             if 'dumbass' not in [x.name for x in message.author.roles]:
                 await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
     elif message.channel != story_channel:
+        # 2% chance of sending a random message
         if random() < 0.02:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
@@ -381,16 +378,18 @@ async def stats(ctx, *args):
         embed = discord.Embed(color=member.color)
         embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
 
+        # TODO: make it so hyperlinks attach to the entire link, now each square individually
+        # TODO: fix rounding error in calculating percent change
         daily_direction = 'Up' if daily_stats[2] > prev_daily_stats[2] else 'Down'
-        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {abs(round(daily_stats[2]-prev_daily_stats[2], 2))}% from yesterday```"
+        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {abs(round(daily_stats[2]-prev_daily_stats[2], 1))}% from yesterday```"
         embed.add_field(name="Daily - Ranked #"+str(daily_stats[1]), value=daily_bar)
 
         weekly_direction = 'Up' if weekly_stats[2] > prev_weekly_stats[2] else 'Down'
-        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {abs(round(weekly_stats[2]-prev_weekly_stats[2], 2))}% from last week```"
+        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {abs(round(weekly_stats[2]-prev_weekly_stats[2], 1))}% from last week```"
         embed.add_field(name='Weekly - Ranked #'+str(weekly_stats[1]), value=weekly_bar)
 
         monthly_direction = 'Up' if monthly_stats[2] > prev_monthly_stats[2] else 'Down'
-        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {abs(round(monthly_stats[2]-prev_monthly_stats[2], 2))}% from last month```"
+        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {abs(round( monthly_stats[2]-prev_monthly_stats[2], 1))}% from last month```"
         embed.add_field(name='Monthly - Ranked #'+str(monthly_stats[1]), value=monthly_bar)
 
         await ctx.send(embed=embed)
@@ -508,7 +507,7 @@ async def calculate_member_stats(members, req_member, channel_history, slowmode_
 
     channel_history = [x for x in channel_history if x.created_at > after and x.created_at < before]
     # .slowmode_delay is in seconds
-    possible_counts_interval = (before - after).total_seconds() / slowmode_delay
+    possible_counts_interval = round((before - after).total_seconds() / slowmode_delay)
 
     stats = []
     for member in members:
