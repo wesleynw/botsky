@@ -209,7 +209,7 @@ async def on_message(message):
 
     if 'tuesday' in message.content.lower():
         await message.channel.send(file=discord.File('tueday.png'))
-    if 'when?' in message.content.lower():
+    if 'when' in message.content.lower():
         await message.channel.send('like when did I ask')
 
     try:
@@ -247,8 +247,6 @@ async def on_message(message):
         if latest_count != latest_count_2+1:
             mesg = choice(on_error_messages).format(message.author.mention)
             await counting_channel.send(mesg, delete_after=10)
-            if 'dumbass' not in [x.name for x in message.author.roles]:
-                await message.author.add_roles(get(message.guild.roles, name='dumbass')) # dumbass role
     elif message.channel != story_channel:
         # 2% chance of sending a random message
         if random() < 0.02:
@@ -383,18 +381,16 @@ async def stats(ctx, *args):
         embed = discord.Embed(color=member.color)
         embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
 
-        # TODO: make it so hyperlinks attach to the entire link, now each square individually
-        # TODO: fix rounding error in calculating percent change
         daily_direction = 'Up' if daily_stats[2] > prev_daily_stats[2] else 'Down'
-        daily_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(daily_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(daily_stats[2]/10)) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {abs(round(daily_stats[2]-prev_daily_stats[2], 1))}% from yesterday```"
+        daily_bar = await efficiency_bar(daily_stats[2]) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {abs(round(daily_stats[2]-prev_daily_stats[2], 1))}% from yesterday```"
         embed.add_field(name="Daily - Ranked #"+str(daily_stats[1]), value=daily_bar)
 
         weekly_direction = 'Up' if weekly_stats[2] > prev_weekly_stats[2] else 'Down'
-        weekly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(weekly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(weekly_stats[2]/10)) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {abs(round(weekly_stats[2]-prev_weekly_stats[2], 1))}% from last week```"
+        weekly_bar = await efficiency_bar(weekly_stats[2]) + f" ({weekly_stats[2]}%)"+f"\n```{weekly_direction} {abs(round(weekly_stats[2]-prev_weekly_stats[2], 1))}% from last week```"
         embed.add_field(name='Weekly - Ranked #'+str(weekly_stats[1]), value=weekly_bar)
 
         monthly_direction = 'Up' if monthly_stats[2] > prev_monthly_stats[2] else 'Down'
-        monthly_bar = f'[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, round(monthly_stats[2]/10)) + "[□](https://youtu.be/dQw4w9WgXcQ)"*(10-round(monthly_stats[2]/10)) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {abs(round( monthly_stats[2]-prev_monthly_stats[2], 1))}% from last month```"
+        monthly_bar = await efficiency_bar(monthly_stats[2]) + f" ({monthly_stats[2]}%)"+f"\n```{monthly_direction} {abs(round( monthly_stats[2]-prev_monthly_stats[2], 1))}% from last month```"
         embed.add_field(name='Monthly - Ranked #'+str(monthly_stats[1]), value=monthly_bar)
 
         await ctx.send(embed=embed)
@@ -458,26 +454,6 @@ async def birthday(ctx, arg):
     # ctx.author.id can provide a Member or User object depending on if in server or DM
     collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
     await ctx.send('Got it.')
-
-# @bot.command()
-# async def penis(ctx, *args):
-#     collection = db[str(ctx.guild.id)]
-#     # create a penis if the member doesn't already have one
-#     if collection.find_one({"penis_data" : {str(ctx.author.id) : {'$exists' : True}}}) is None:
-#         collection.insert_one({"penis_data" : {str(ctx.author.id) : 
-#         {
-#             "length" : round(ctx.author.id / 10**17, 1),
-#             "sperm_count" : 150,
-#             "condom_ct" : 0,
-#             "horniness" : 10,
-#             "stamina" : 35,
-#             "stress" : 50,
-#             "vasectomy" : False
-#         }
-#         }})
-
-#     # display current penis stats
-#     if len(args) == 0:
         
         
 
@@ -540,6 +516,11 @@ async def sleep_until_hour(hour_utc : int):
         else:
             wait_until = now.replace(day=now.day+1, hour=hour_utc, minute=0, second=0, microsecond=0)
             await asyncio.sleep((wait_until - now).total_seconds())
+
+async def efficiency_bar(percent: float) -> str:
+    """Returns a string of 10 full and empty squares representing the percent variable, where percent is a float > 0."""
+    percent = round(percent/10)
+    return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
 
 
 
