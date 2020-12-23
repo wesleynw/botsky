@@ -355,13 +355,14 @@ async def stats(ctx, *args):
             await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
 
-        member = ctx.author
         if len(args) != 0:
             try: 
-                member = bot.get_user(int(sub("[^0-9]", "", args[0])))
+                member = ctx.guild.get_member(int(sub("[^0-9]", "", args[0])))
             except:
                 await ctx.send("Something went wrong. Try running this command again.")
                 pass
+        else:
+            member = ctx.author
 
         
         now = datetime.utcnow()
