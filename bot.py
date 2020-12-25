@@ -159,42 +159,9 @@ async def daily_leaderboard():
             logging.info("Exception in daily_leaderboard")
             return
 
-        # retrieve and send last week's stats
-        # need to calculate previous ranks and efficiency now, defaults to oldest_first=True 
-        ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, after=datetime.utcnow()-timedelta(days=1))
-        prev_ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, after=datetime.utcnow()-timedelta(days=2), before=datetime.utcnow()-timedelta(days=1))
-        embed = discord.Embed(color=embed_color)
-        embed.add_field(name=f'Daily Leaderboard 💯', value='___', inline=False)
-
-
-        def search(lst, item):
-            for i in range(len(lst)):
-                part = lst[i]
-                for j in range(len(part)):
-                    if part[j] == item: return (i, j)
-            return None
-
-        for i in range(min(10, len(ranks_and_efficiency))):
-            # ranks_and_efficiency is in format [ [rank, member, efficiency], [], []] listed in order of rank
-            place = i
-            if place == 0:
-                place = ":first_place:"
-            elif i == 1:
-                place = ":second_place:"
-            elif i == 2:
-                place = ":third_place:"
-            prev_member = search(prev_ranks_and_efficiency, ranks_and_efficiency[i][1])
-            change_in_rank = prev_ranks_and_efficiency[prev_member[0]][0] - ranks_and_efficiency[i][0]
-            direction = ':record_button:'
-            if change_in_rank > 0:
-                direction = ':arrow_up:'
-            elif change_in_rank < 0:
-                direction = ':arrow_down:'
-            else: 
-                change_in_rank = ''
-            embed.add_field(name=f'**{place}**. {ranks_and_efficiency[i][1].display_name}', value=f'{direction} {change_in_rank} --- efficiency: **{ranks_and_efficiency[i][2]}%**', inline=False)
-
-        await announcements_channel.send(embed=embed)
+        # call leaderboard command daily
+        # ctx needed: channel, guild
+        await leaderboard_print(announcements_channel, guild, 'daily')
 
 
 
@@ -306,44 +273,7 @@ async def link(ctx, *args):
 
 @bot.command()  
 async def leaderboard(ctx, *args):
-    async with ctx.channel.typing():
-        try: 
-            collection = db[str(ctx.guild.id)]
-            counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-        except Exception as e:
-            print(e)
-            await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
-            return
-        
-        interval = 'All Time'
-        if len(args) != 0:
-            if args[0] == 'daily':
-                td = datetime.utcnow() - timedelta(days=1)
-                interval = 'Daily'
-            elif args[0] == 'weekly':
-                td = datetime.utcnow() - timedelta(weeks=1)
-                interval = 'Weekly'
-            elif args[0] == 'monthly':
-                td = datetime.utcnow() - timedelta(weeks=4)
-                interval = 'Monthly'
-            else:
-                await ctx.send('⚠️Error!⚠️ Arguments must be either **empty**(for all time), **daily**, **weekly**, or **monthly**.')
-                return
-        else:
-            oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
-            td = oldest_mesg[0].created_at
-    
-        # message_hist = await counting_channel.history(limit=None, after=td).flatten()
-        embed = discord.Embed(color=embed_color)
-        embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
-    
-        # ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, message_hist, (datetime.utcnow() - td).total_seconds()/3600)
-        ranks_and_efficiency = await calc_ranks_and_efficiency(ctx.guild.members, counting_channel, td)
-
-        for i in range(min(5, len(ranks_and_efficiency))):
-            embed.add_field(name=f"***{i+1}***. {ranks_and_efficiency[i][1].display_name}", value=f"efficiency: **{ranks_and_efficiency[i][2]}%**", inline=False)
-
-        await ctx.send(embed=embed)
+    await leaderboard_print(ctx.channel, ctx.guild)
 
 @bot.command()
 async def stats(ctx, *args):
@@ -396,7 +326,6 @@ async def stats(ctx, *args):
 
         await ctx.send(embed=embed)
         
-     
 @bot.command()
 async def story(ctx, arg : int = 1):
     async with ctx.channel.typing():
@@ -522,6 +451,50 @@ async def efficiency_bar(percent: float) -> str:
     """Returns a string of 10 full and empty squares representing the percent variable, where percent is a float > 0."""
     percent = round(percent/10)
     return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
+
+async def leaderboard_print(channel, guild, arg = None):
+    async with channel.typing():
+        try: 
+            collection = db[str(guild.id)]
+            counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
+        except:
+            await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
+            return
+        
+        interval = 'All Time'
+        if arg is not None:
+            if arg == 'daily':
+                td = datetime.utcnow() - timedelta(days=1)
+                interval = 'Daily'
+            elif arg == 'weekly':
+                td = datetime.utcnow() - timedelta(weeks=1)
+                interval = 'Weekly'
+            elif arg == 'monthly':
+                td = datetime.utcnow() - timedelta(weeks=4)
+                interval = 'Monthly'
+            else:
+                await channel.send('⚠️Error!⚠️ Arguments must be either **empty**(for all time), **daily**, **weekly**, or **monthly**.')
+                return
+        else:
+            oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
+            td = oldest_mesg[0].created_at
+    
+        embed = discord.Embed(color=embed_color)
+        embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
+    
+        ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, td)
+
+        for i in range(min(5, len(ranks_and_efficiency))):
+            place = i+1
+            if place == 1:
+                place = ":first_place:"
+            elif place == 2:
+                place = ":second_place:"
+            elif place == 3:
+                place = ":third_place:"
+            embed.add_field(name=f"***{place}*** - {ranks_and_efficiency[i][1].display_name}", value=f"{await efficiency_bar(ranks_and_efficiency[i][2])} ({ranks_and_efficiency[i][2]}%)", inline=False)
+
+        await channel.send(embed=embed)
 
 
 
