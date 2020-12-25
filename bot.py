@@ -12,6 +12,7 @@ from discord.utils import get
 from discord.ext import commands, tasks
 from pymongo import MongoClient
 
+logging.basicConfig(level=logging.INFO)
 token = os.environ.get('DISCORDTOKEN')
 intents = discord.Intents().all()
 bot = commands.Bot(command_prefix='$', intents=intents)
@@ -145,7 +146,6 @@ async def count_hourly():
 async def daily_leaderboard():  
     # trigger everyday at 6UTC (22:00 PST)
     await sleep_until_hour(6)
-
     logging.info('Starting daily leaderboard...')
 
     for guild in bot.guilds:
@@ -156,11 +156,8 @@ async def daily_leaderboard():
             if counting_channel == None or announcements_channel == None:
                 return
         except:
-            logging.info("Exception in daily_leaderboard")
+            logging.warning("Exception in daily_leaderboard")
             return
-
-        # call leaderboard command daily
-        # ctx needed: channel, guild
         await leaderboard_print(announcements_channel, guild, 'daily')
 
 
@@ -226,8 +223,7 @@ async def on_message(message):
 ### COMMANDS
 @bot.command()
 async def ping(ctx):
-    suffix = ['bitches', 'you sick fuck', 'sir', 'daddy 🥺', 'master', 'papa', 'whores', "y'all"]
-    await ctx.send(f'Pong! **{round(bot.latency, 3)}ms** {choice(suffix)}')
+    await ctx.send(f'Pong! **{round(bot.latency, 3)}ms**.')
 
 @bot.command()
 async def link(ctx, *args):
@@ -273,7 +269,7 @@ async def link(ctx, *args):
 
 @bot.command()  
 async def leaderboard(ctx, *args):
-    await leaderboard_print(ctx.channel, ctx.guild)
+    await leaderboard_print(ctx.channel, ctx.guild, args)
 
 @bot.command()
 async def stats(ctx, *args):
@@ -389,29 +385,6 @@ async def birthday(ctx, arg):
 
 
 ### FUNCTIONS
-async def calc_ranks_and_efficiency(members, counting_channel, after, before=None):
-    if before is None:
-        before = datetime.utcnow()
-    message_hist = await counting_channel.history(limit=None, after=after, before=before).flatten()
-    # .slowmode_delay is in seconds
-    possible_counts_interval = (before - after).total_seconds() / counting_channel.slowmode_delay
-    efficiency_stats = []
-    for member in members:
-        counter = 0
-        for message in message_hist:
-            if message.author == member:
-                counter += 1
-        efficiency_stats.append([member, round(counter / possible_counts_interval * 100, 2)])
-    
-    # sort efficiencies low to high
-    efficiency_stats = sorted(efficiency_stats, key=lambda x: x[1], reverse=True)
-    ranks_and_efficiency = []
-    for i in range(len(efficiency_stats)):
-        # returns in format [ [rank, member, efficiency], [], [] ]
-        ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1]])
-    return ranks_and_efficiency
-
-# rewrite function to take counting history as an argument to lessen impact on api
 async def calculate_member_stats(members, req_member, channel_history, slowmode_delay, after, before=None):
     if before is None:
         before = datetime.utcnow()
@@ -430,11 +403,19 @@ async def calculate_member_stats(members, req_member, channel_history, slowmode_
 
     # sort efficiencies low to high
     efficiency_stats = sorted(stats, key=lambda x: x[1], reverse=True)
-    for i,e in enumerate(efficiency_stats):
-        if e[0] == req_member:
-            # format: [member, rank, efficiency]
-            return [e[0], i+1, e[1]]
 
+    # if req_member is set to None, then return all stats, sorted
+    if req_member is None:
+        ranks_and_efficiency = []
+        for i in range(len(efficiency_stats)):
+            # returns in format [ [rank, member, efficiency], [], [] ]
+            ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1]])
+        return ranks_and_efficiency
+    else:
+        for i,e in enumerate(efficiency_stats):
+            if e[0] == req_member:
+                # format: [member, rank, efficiency]
+                return [e[0], i+1, e[1]]
 
 async def sleep_until_hour(hour_utc : int):
     # sleep until the specified datetime
@@ -452,7 +433,7 @@ async def efficiency_bar(percent: float) -> str:
     percent = round(percent/10)
     return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
 
-async def leaderboard_print(channel, guild, arg = None):
+async def leaderboard_print(channel, guild, args = None):
     async with channel.typing():
         try: 
             collection = db[str(guild.id)]
@@ -461,28 +442,37 @@ async def leaderboard_print(channel, guild, arg = None):
             await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
         
-        interval = 'All Time'
-        if arg is not None:
-            if arg == 'daily':
-                td = datetime.utcnow() - timedelta(days=1)
+        now = datetime.utcnow()
+        interval = 'Daily'
+        if len(args) >= 1:
+            if args[0] == 'daily':
+                td = timedelta(days=1)
                 interval = 'Daily'
-            elif arg == 'weekly':
-                td = datetime.utcnow() - timedelta(weeks=1)
+            elif args[0] == 'weekly':
+                td = timedelta(weeks=1)
                 interval = 'Weekly'
-            elif arg == 'monthly':
-                td = datetime.utcnow() - timedelta(weeks=4)
+            elif args[0] == 'monthly':
+                td = timedelta(weeks=4)
                 interval = 'Monthly'
+            elif args[0] == 'all':
+                oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
+                td = now - oldest_mesg[0].created_at    
+                interval = "All Time"
             else:
-                await channel.send('⚠️Error!⚠️ Arguments must be either **empty**(for all time), **daily**, **weekly**, or **monthly**.')
+                await channel.send("Something went wrong. Try running this command again. You must specify **weekly**, **monthly**, or **all**, or just **#leaderboard** for all time.")
                 return
         else:
-            oldest_mesg = await counting_channel.history(limit=1, oldest_first=True).flatten()
-            td = oldest_mesg[0].created_at
+            td = timedelta(days=1)
+            interval = 'Daily'
     
+        now = datetime.utcnow()
+        slowmode = counting_channel.slowmode_delay
+        counting_channel_history = await counting_channel.history(limit=None).flatten()
+
+        ranks_and_efficiency = await calculate_member_stats(guild.members, None, counting_channel_history, slowmode, now - td)
+
         embed = discord.Embed(color=embed_color)
         embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
-    
-        ranks_and_efficiency = await calc_ranks_and_efficiency(guild.members, counting_channel, td)
 
         for i in range(min(5, len(ranks_and_efficiency))):
             place = i+1
@@ -493,7 +483,6 @@ async def leaderboard_print(channel, guild, arg = None):
             elif place == 3:
                 place = ":third_place:"
             embed.add_field(name=f"***{place}*** - {ranks_and_efficiency[i][1].display_name}", value=f"{await efficiency_bar(ranks_and_efficiency[i][2])} ({ranks_and_efficiency[i][2]}%)", inline=False)
-
         await channel.send(embed=embed)
 
 
