@@ -158,7 +158,8 @@ async def daily_leaderboard():
         except:
             logging.warning("Exception in daily_leaderboard")
             return
-        await leaderboard_print(announcements_channel, guild, 'daily')
+
+        await leaderboard_print(announcements_channel, guild)
 
 
 
@@ -269,7 +270,7 @@ async def link(ctx, *args):
 
 @bot.command()  
 async def leaderboard(ctx, *args):
-    await leaderboard_print(ctx.channel, ctx.guild, args)
+    await leaderboard_print(ctx.channel, ctx.guild, *args)
 
 @bot.command()
 async def stats(ctx, *args):
@@ -433,7 +434,7 @@ async def efficiency_bar(percent: float) -> str:
     percent = round(percent/10)
     return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
 
-async def leaderboard_print(channel, guild, args = None):
+async def leaderboard_print(channel, guild, *args):
     async with channel.typing():
         try: 
             collection = db[str(guild.id)]
@@ -441,7 +442,6 @@ async def leaderboard_print(channel, guild, args = None):
         except:
             await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
-        
         now = datetime.utcnow()
         interval = 'Daily'
         if len(args) >= 1:
@@ -474,7 +474,7 @@ async def leaderboard_print(channel, guild, args = None):
         embed = discord.Embed(color=embed_color)
         embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
 
-        for i in range(min(5, len(ranks_and_efficiency))):
+        for i in range(min(6, len(ranks_and_efficiency))):
             place = i+1
             if place == 1:
                 place = ":first_place:"
