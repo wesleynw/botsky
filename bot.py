@@ -278,7 +278,7 @@ async def stats(ctx, *args):
         try: 
             collection = db[str(ctx.guild.id)]
             counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-        except Exception:
+        except:
             await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
 
@@ -294,7 +294,7 @@ async def stats(ctx, *args):
         
         now = datetime.utcnow()
         slowmode = counting_channel.slowmode_delay
-        counting_channel_history = await counting_channel.history(limit=None).flatten()
+        counting_channel_history = await counting_channel.history(limit=None, oldest_first=True).flatten()
 
         # returns in format: [member, rank, efficiency]
         daily_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=1))
@@ -305,9 +305,15 @@ async def stats(ctx, *args):
         monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=4))
         prev_monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=8), now - timedelta(weeks=4))
 
+        oldest_time = counting_channel_history[0].created_at
+        all_time = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, oldest_time)
+
+
+
 
         embed = discord.Embed(color=member.color)
         embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
+        embed.set_footer(text="Counted a total of " + str(all_time[3]) + " times.")
 
         daily_direction = 'Up' if daily_stats[2] > prev_daily_stats[2] else 'Down'
         daily_bar = await efficiency_bar(daily_stats[2]) + f" ({daily_stats[2]}%)"+f"\n```{daily_direction} {abs(round(daily_stats[2]-prev_daily_stats[2], 1))}% from yesterday```"
@@ -339,7 +345,6 @@ async def story(ctx, arg : int = 1):
                 text += message.content + ' '
             else: 
                 text += '$asdf$'
-        # TODO: fix for if the number it out of range
 
         text = "The " + text.split('$asdf$')[arg]
         for line in textwrap.wrap(text, width=2000):
@@ -401,7 +406,7 @@ async def calculate_member_stats(members, req_member, channel_history, slowmode_
         for message in channel_history:
             if message.author == member:
                 counter +=1
-        stats.append([member, round(counter / possible_counts_interval * 100, 2)])
+        stats.append([member, round(counter / possible_counts_interval * 100, 2), counter])
 
     # sort efficiencies low to high
     efficiency_stats = sorted(stats, key=lambda x: x[1], reverse=True)
@@ -410,14 +415,14 @@ async def calculate_member_stats(members, req_member, channel_history, slowmode_
     if req_member is None:
         ranks_and_efficiency = []
         for i in range(len(efficiency_stats)):
-            # returns in format [ [rank, member, efficiency], [], [] ]
-            ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1]])
+            # returns in format [ [rank, member, efficiency, total_counts], [], [] ]
+            ranks_and_efficiency.append([i+1, efficiency_stats[i][0], efficiency_stats[i][1], efficiency_stats[i][2]])
         return ranks_and_efficiency
     else:
         for i,e in enumerate(efficiency_stats):
             if e[0] == req_member:
-                # format: [member, rank, efficiency]
-                return [e[0], i+1, e[1]]
+                # format: [member, rank, efficiency, total_counts]
+                return [e[0], i+1, e[1], e[2]]
 
 async def sleep_until_hour(hour_utc : int):
     # sleep until the specified datetime
