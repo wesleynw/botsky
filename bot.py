@@ -340,7 +340,7 @@ async def story(ctx, arg : int = 1):
             else: 
                 text += '$asdf$'
         # TODO: fix for if the number it out of range
-        for line in textwrap.wrap(text, wrap_at=2000):
+        for line in textwrap.wrap(text, width=2000):
             await ctx.send(line)
 
 
