@@ -340,15 +340,13 @@ async def story(ctx, arg : int = 1):
             else: 
                 text += '$asdf$'
         # TODO: fix for if the number it out of range
+
+        text = "The " + text.split('$asdf$')[arg]
         for line in textwrap.wrap(text, width=2000):
             await ctx.send(line)
 
 
-        # if len(text) > 2000:
-        #     await ctx.send("The " + text.split('$asdf$')[arg][:2000])
-        #     await ctx.send(text.split('$asdf$'[arg][2000:]))
-        # else:
-        #     await ctx.send("The " + text.split('$asdf$')[arg])     
+   
 
 @bot.command()
 async def dm_owner(ctx, *args):
