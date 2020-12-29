@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import textwrap
 import logging 
 import traceback
 import discord
@@ -328,8 +329,7 @@ async def story(ctx, arg : int = 1):
         collection = db[str(ctx.guild.id)]
         try:
             story_channel = bot.get_channel(collection.find_one({'story_channel' : {'$exists' : True}}).get('story_channel'))
-        except Exception as e:
-            print(e) 
+        except:
             await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
             return
 
@@ -340,11 +340,15 @@ async def story(ctx, arg : int = 1):
             else: 
                 text += '$asdf$'
         # TODO: fix for if the number it out of range
-        if len(text) > 2000:
-            await ctx.send("The " + text.split('$asdf$')[arg][:2000])
-            await ctx.send(text.split('$asdf$'[arg][2000:]))
-        else:
-            await ctx.send("The " + text.split('$asdf$')[arg])     
+        for line in textwrap.wrap(text, wrap_at=2000):
+            await ctx.send(line)
+
+
+        # if len(text) > 2000:
+        #     await ctx.send("The " + text.split('$asdf$')[arg][:2000])
+        #     await ctx.send(text.split('$asdf$'[arg][2000:]))
+        # else:
+        #     await ctx.send("The " + text.split('$asdf$')[arg])     
 
 @bot.command()
 async def dm_owner(ctx, *args):
