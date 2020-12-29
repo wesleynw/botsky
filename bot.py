@@ -172,11 +172,6 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    if 'tuesday' in message.content.lower():
-        await message.channel.send(file=discord.File('tueday.png'))
-    if 'when' in message.content.lower():
-        await message.channel.send('like when did I ask')
-
     try:
         collection = db[str(message.guild.id)]
         counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
@@ -213,6 +208,10 @@ async def on_message(message):
             mesg = choice(on_error_messages).format(message.author.mention)
             await counting_channel.send(mesg, delete_after=10)
     elif message.channel != story_channel:
+        if 'tuesday' in message.content.lower():
+            await message.channel.send(file=discord.File('tueday.png'))
+        if 'when' in message.content.lower():
+            await message.channel.send('like when did I ask')
         # 2% chance of sending a random message
         if random() < 0.02:
             await message.channel.send(message.author.mention+" "+choice(questions))
