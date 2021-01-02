@@ -170,7 +170,7 @@ async def floppa_friday():
     while datetime.now().weekday() != 4:
         await asyncio.sleep(24 * 60 * 60)
 
-    # await sleep_until_hour(20)
+    await sleep_until_hour(20)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
         try: 
