@@ -373,11 +373,6 @@ async def story(ctx, arg : int = 1):
    
 
 @bot.command()
-async def dm_owner(ctx, *args):
-    member = bot.get_user(184880932476420097)
-    await member.send(' '.join(args))
-
-@bot.command()
 async def length(ctx, *args):
     def ascii_penis(length : int) -> str:
         length *= 2
@@ -399,7 +394,7 @@ async def length(ctx, *args):
         return penis
 
     try: 
-        user = bot.get_user(int(sub("[^0-9]", "", args[0])))
+        user = ctx.guild.get_member(int(sub("[^0-9]", "", args[0])))
     except:
         user = ctx.author
 
