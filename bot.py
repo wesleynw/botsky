@@ -33,6 +33,7 @@ async def on_ready():
     count_hourly.start()
     daily_leaderboard.start()
     birthday_annoucements.start()
+    floppa_friday.start()
 
 @bot.event 
 async def on_error(event, *args, **kwargs):
@@ -162,7 +163,25 @@ async def daily_leaderboard():
 
         await leaderboard_print(announcements_channel, guild)
 
+@tasks.loop(hours=168)
+async def floppa_friday():
+    # trigger every friday at 20 UTC (12:00 PST)
+    # there has to be a more efficient way to do this
+    while datetime.now().weekday() != 4:
+        await asyncio.sleep(24 * 60 * 60)
 
+    await sleep_until_hour(20)
+    for guild in bot.guilds:
+        collection = db[str(guild.id)]
+        try: 
+            announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
+        except:
+            return
+
+        await announcements_channel.send(file=discord.File('floppa_friday.mov'))
+
+
+    
 
 
 ### EVENTS
