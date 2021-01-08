@@ -112,20 +112,19 @@ async def birthday_annoucements():
                 member = guild.get_member(int(k))
                 await announcements_channel.send(f"{guild.default_role} with a happy birthday to {member.mention}")
 
+# TODO: make this so it changes per slowmode delay
 @tasks.loop(hours=1)
 async def count_hourly():
     if datetime.utcnow().minute != 0:
         await asyncio.sleep((60-datetime.utcnow().minute)*60)
 
-
     for guild in bot.guilds:
         collection = db[str(guild.id)]
-        try:
-            counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-            if counting_channel == None:
-                return
-        except AttributeError:
-            return 
+        counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
+        disabled_flag = (collection.find_one({'disable_counting' : {'$exists' : True}}) or {0:0}).get('disable_counting', False)
+        if counting_channel is None or disabled_flag:
+            return
+
 
         payload = await counting_channel.history(limit=1).flatten()
         try: 
@@ -372,8 +371,20 @@ async def story(ctx, arg : int = 1):
         for line in textwrap.wrap(text, width=2000):
             await ctx.send(line)
 
+@bot.command()
+@commands.check(is_admin)
+async def stop_the_count(ctx):
+    collection = db[str(ctx.guild.id)]
+    collection.replace_one({"disable_counting" : {'$exists' : True}}, {"disable_counting" : True}, upsert=True)
+    await ctx.send('I will now stop counting...')
 
-   
+@bot.command()
+async def start_counting(ctx):        
+    collection = db[str(ctx.guild.id)]
+    collection.replace_one({"disable_counting" : {'$exists' : True}}, {"disable_counting" : False}, upsert=True)
+    await ctx.send('I will now begin counting...')
+
+
 
 @bot.command()
 async def length(ctx, member : discord.Member = None):
