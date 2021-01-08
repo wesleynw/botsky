@@ -287,7 +287,7 @@ async def leaderboard_print(channel, guild, *args):
 
         ranks_and_efficiency = await calculate_member_stats(guild.members, None, counting_channel_history, slowmode, now - td)
 
-        embed = discord.Embed()
+        embed = discord.Embed(color=0x3498db)
         embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
 
         for i in range(min(6, len(ranks_and_efficiency))):
