@@ -173,17 +173,9 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    try:
-        collection = db[str(message.guild.id)]
-        counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
-    except:
-        counting_channel = None
-    
-    try:
-        collection = db[str(message.guild.id)]
-        story_channel = bot.get_channel(collection.find_one({'story_channel' : {'$exists' : True}}).get('story_channel'))
-    except:
-        story_channel = None
+    collection = db[str(message.guild.id)]
+    counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
+    story_channel = bot.get_channel((collection.find_one({'story_channel' : {'$exists' : True}}) or {0:0}).get('story_channel'))
 
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
@@ -214,7 +206,7 @@ async def on_message(message):
         if 'when' in message.content.lower():
             await message.channel.send('like when did I ask')
         # 2% chance of sending a random message
-        if random() < 0.02:
+        if random() < 0.05:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
 @bot.event
