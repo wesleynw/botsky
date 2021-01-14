@@ -36,7 +36,6 @@ async def on_ready():
     change_presense.start()
     count_hourly.start()
     daily_leaderboard.start()
-    birthday_annoucements.start()
     floppa_friday.start()
 
 async def is_admin(ctx):
@@ -95,22 +94,6 @@ async def on_raw_reaction_remove(payload):
 async def change_presense():
     activity = discord.Game(choice(activities))
     await bot.change_presence(activity=activity)
-
-@tasks.loop(hours=24)
-async def birthday_annoucements():
-    # trigger every day at 9AM PST (17:00 UTC)
-    await sleep_until_hour(17)
-    for guild in bot.guilds:
-        collection = db[str(guild.id)]
-        announcements_channel = bot.get_channel((collection.find_one({'announcements_channel' : {'$exists' : True}}) or {0:0}).get('announcements_channel'))
-        birthdays = (collection.find_one({'birthdays' : {'$exists' : True}}) or {0:0}).get('birthdays')
-        if announcements_channel is None or birthday is None:
-            return
-
-        for k,v in birthdays.items():
-            if datetime.strptime(v, "%m/%d").replace(year=datetime.now().year).date() == datetime.today().date():
-                member = guild.get_member(int(k))
-                await announcements_channel.send(f"{guild.default_role} with a happy birthday to {member.mention}")
 
 # TODO: make this so it changes per slowmode delay
 @tasks.loop(hours=1)
@@ -389,22 +372,6 @@ async def length(ctx, member : discord.Member = None):
         length = 11.1
 
     await ctx.send(f"{member.mention}'s cock length is {length} inches.")
-
-@bot.command()
-async def birthday(ctx, arg):
-    try:
-        b = arg.split('/')
-        mm = int(sub("[^0-9]", "", b[0]))
-        dd = int(sub("[^0-9]", "", b[1]))
-        if mm not in range(1,13) or dd not in range(1,32):
-            raise ValueError 
-    except ValueError:
-        await ctx.send('The birthday you entered was invalid, please enter it in the format MM/DD.')
-        return 
-    collection = db[str(ctx.guild.id)]
-    # ctx.author.id can provide a Member or User object depending on if in server or DM
-    collection.replace_one({"birthdays" : {'$exists' : True}}, {"birthdays" : {str(ctx.author.id) : arg}}, upsert=True)
-    await ctx.send('Got it.')
         
         
 
