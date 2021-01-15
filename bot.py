@@ -189,7 +189,7 @@ async def on_message(message):
         if 'when' in message.content.lower():
             await message.channel.send('like when did I ask')
         # 2% chance of sending a random message
-        if random() < 0.05:
+        if random() < 0.001:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
 @bot.event
