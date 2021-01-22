@@ -184,6 +184,8 @@ async def on_message(message):
             mesg = choice(on_error_messages).format(message.author.mention)
             await counting_channel.send(mesg, delete_after=10)
     elif message.channel != story_channel:
+        if 'c' in message.content.lower():
+            await message.channel.send('You have used a forbidden letter.')
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         if 'when' in message.content.lower():
