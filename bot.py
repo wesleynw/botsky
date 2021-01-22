@@ -185,7 +185,24 @@ async def on_message(message):
             await counting_channel.send(mesg, delete_after=10)
     elif message.channel != story_channel:
         if 'c' in message.content.lower():
-            await message.channel.send('You have used a forbidden letter.')
+            collection = db[str(message.guild.id)]
+            current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0)
+            new_strike_count = current_strikes + message.content.count('c')
+
+            if new_strike_count < 3:
+                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : new_strike_count}}, upsert=True)
+                await message.channel.send(f'You have used a forbidden letter. You have {new_strike_count} strikes.')
+            else: 
+                # OUT
+                # TODO: rewrite this so it works when the OUT role doesn't exist
+                out = get(message.guild.roles, name = 'OUT')
+                await message.author.add_roles(out)
+                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
+                await message.channel.send('This is your third strike. You are out. Enjoy the afterlife.')
+                await asyncio.sleep(60 * 60)
+                await message.author.remove_roles(out)
+
+
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         if 'when' in message.content.lower():
