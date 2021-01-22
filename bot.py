@@ -3,6 +3,7 @@ import logging
 import os
 import json
 import asyncio
+import inflect
 import textwrap
 import traceback
 from re import sub
@@ -191,14 +192,15 @@ async def on_message(message):
 
             if new_strike_count < 3:
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : new_strike_count}}, upsert=True)
-                await message.channel.send(f'You have used a forbidden letter. You have {new_strike_count} strikes.')
+                p = inflect.engine()
+                await message.channel.send(f'You have used a forbidden letter. That was your {p.ordinal(new_strike_count)} strike.')
             else: 
                 # OUT
                 # TODO: rewrite this so it works when the OUT role doesn't exist
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
-                await message.channel.send('This is your third strike. You are out. Enjoy the afterlife.')
+                await message.channel.send('That was your 3rd strike. You are out. Enjoy the afterlife.')
                 await asyncio.sleep(60 * 60)
                 await message.author.remove_roles(out)
 
