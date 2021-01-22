@@ -187,22 +187,23 @@ async def on_message(message):
     elif message.channel != story_channel:
         if 'c' in message.content.lower():
             collection = db[str(message.guild.id)]
-            current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0)
-            new_strike_count = current_strikes + message.content.count('c')
+            current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0) + 1
 
-            if new_strike_count < 3:
-                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : new_strike_count}}, upsert=True)
+            if current_strikes < 3:
+                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
                 p = inflect.engine()
-                await message.channel.send(f'You have used a forbidden letter. That was your {p.ordinal(new_strike_count)} strike.')
+                await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
+            elif current_strikes >=3:
+                return
             else: 
-                await message.channel.send('That was your 3rd strike. You are out. Enjoy the afterlife.')
+                await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for the next 15 minutes.")
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
-                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
-                await asyncio.sleep(60 * 60)
+
+                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 3}}, upsert=True)
+                await asyncio.sleep(15 * 60)
                 await message.author.remove_roles(out)
-
-
+                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         if 'when' in message.content.lower():
@@ -223,6 +224,16 @@ async def on_command_error(ctx, error):
 @bot.command()
 async def ping(ctx):
     await ctx.send(f'Pong! **{round(bot.latency, 3)}ms**.')
+
+@bot.command()
+async def strikes(ctx, member : discord.Member = None):
+    member = member or ctx.author
+    collection = db[str(ctx.guild.id)]
+    current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(ctx.author.id), 0)
+    if current_strikes is 3:
+        await ctx.channel.send(f"{member.mention} has {current_strikes} strikes and is currently on timeout.")
+    else:
+        await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
 
 @bot.command()
 @commands.check(is_admin)
