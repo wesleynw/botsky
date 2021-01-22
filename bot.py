@@ -193,8 +193,6 @@ async def on_message(message):
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
                 p = inflect.engine()
                 await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
-            elif current_strikes >=3:
-                return
             else: 
                 await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for the next 15 minutes.")
                 out = get(message.guild.roles, name = 'OUT')
