@@ -195,12 +195,10 @@ async def on_message(message):
                 p = inflect.engine()
                 await message.channel.send(f'You have used a forbidden letter. That was your {p.ordinal(new_strike_count)} strike.')
             else: 
-                # OUT
-                # TODO: rewrite this so it works when the OUT role doesn't exist
+                await message.channel.send('That was your 3rd strike. You are out. Enjoy the afterlife.')
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
-                await message.channel.send('That was your 3rd strike. You are out. Enjoy the afterlife.')
                 await asyncio.sleep(60 * 60)
                 await message.author.remove_roles(out)
 
