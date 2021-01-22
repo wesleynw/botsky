@@ -199,7 +199,7 @@ async def on_message(message):
                 await message.author.add_roles(out)
 
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 3}}, upsert=True)
-                await asyncio.sleep(15 * 60)
+                await asyncio.sleep(60 * 15)
                 await message.author.remove_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
         if 'tuesday' in message.content.lower():
@@ -228,7 +228,7 @@ async def strikes(ctx, member : discord.Member = None):
     member = member or ctx.author
     collection = db[str(ctx.guild.id)]
     current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(ctx.author.id), 0)
-    if current_strikes is 3:
+    if current_strikes == 3:
         await ctx.channel.send(f"{member.mention} has {current_strikes} strikes and is currently on timeout.")
     else:
         await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
