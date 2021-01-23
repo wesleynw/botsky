@@ -197,11 +197,15 @@ async def on_message(message):
                 await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for the next 15 minutes.")
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
-
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 3}}, upsert=True)
+
+                current_strikeout = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(message.author.id), 0) + 1
+                collection.replace_one({"strikeouts" : {'$exists' : True}}, {"strikeouts" : {str(message.author.id) : current_strikeout}}, upsert=True)
+
                 await asyncio.sleep(60 * 15)
                 await message.author.remove_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
+
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         if 'when' in message.content.lower():
@@ -228,10 +232,17 @@ async def strikes(ctx, member : discord.Member = None):
     member = member or ctx.author
     collection = db[str(ctx.guild.id)]
     current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(ctx.author.id), 0)
-    if current_strikes == 3:
-        await ctx.channel.send(f"{member.mention} has {current_strikes} strikes and is currently on timeout.")
+    await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
+
+@bot.command()
+async def strikeouts(ctx, member : discord.Member = None):
+    member = member or ctx.author 
+    collection = db[str(ctx.guild.id)]
+    current_strikeouts = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(ctx.author.id), 0)
+    if current_strikeouts == 1:
+        await ctx.channel.send(f"{member.mention} has {current_strikeouts} strikeout.")
     else:
-        await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
+        await ctx.channel.send(f"{member.mention} has {current_strikeouts} strikeouts.")
 
 @bot.command()
 @commands.check(is_admin)
