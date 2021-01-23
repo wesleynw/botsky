@@ -117,17 +117,20 @@ async def count_hourly():
         except ValueError:
             pass
 
-@tasks.loop(hours=24)
+@tasks.loop(hours=24*7)
 async def daily_leaderboard():  
-    # trigger everyday at 6UTC (22:00 PST)
-    await sleep_until_hour(6)
+    # trigger every synday at 4UTC (20:00 PST)
+    # there has to be a more efficient way to do this
+    await sleep_until_hour(4)
+    while datetime.now().weekday() != 6:
+        await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
-        announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
+        announcements_channel = bot.get_channel((collection.find_one({'announcements_channel' : {'$exists' : True}}) or {0:0}).get('announcements_channel'))
         if announcements_channel == None:
             return
 
-        await leaderboard_print(announcements_channel, guild)
+        await leaderboard_print(announcements_channel, guild, 'weekly')
 
 @tasks.loop(hours=168)
 async def floppa_friday():
@@ -208,8 +211,6 @@ async def on_message(message):
 
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
-        if 'when' in message.content.lower():
-            await message.channel.send('like when did I ask')
         # 2% chance of sending a random message
         if random() < 0.001:
             await message.channel.send(message.author.mention+" "+choice(questions))
