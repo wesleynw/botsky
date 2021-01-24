@@ -207,7 +207,7 @@ async def on_message(message):
                 collection.replace_one({"strikeouts" : {'$exists' : True}}, {"strikeouts" : {str(message.author.id) : current_strikeout}}, upsert=True)
 
                 # TODO: change the time back to 60 * 15
-                await asyncio.sleep(5)
+                await asyncio.sleep(60 * 15)
                 await message.author.remove_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
 
