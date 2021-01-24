@@ -119,10 +119,11 @@ async def count_hourly():
 
 @tasks.loop(hours=24*7)
 async def daily_leaderboard():  
-    # trigger every synday at 4UTC (20:00 PST)
+    # trigger every synday at 20:00 PST --- server is now in PST
     # there has to be a more efficient way to do this
-    await sleep_until_hour(4)
-    while datetime.now().weekday() != 6:
+    await sleep_until_hour(20)
+    # TODO: change this back to sunday after sunday night 1/25 8pm
+    while datetime.now().weekday() != 5:
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
@@ -190,7 +191,7 @@ async def on_message(message):
     elif message.channel != story_channel:
         if 'c' in message.content.lower():
             collection = db[str(message.guild.id)]
-            current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0) + 1
+            current_strikes = (collection.find_one({"strikes" : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0) + 1
 
             if current_strikes < 3:
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
@@ -205,7 +206,8 @@ async def on_message(message):
                 current_strikeout = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(message.author.id), 0) + 1
                 collection.replace_one({"strikeouts" : {'$exists' : True}}, {"strikeouts" : {str(message.author.id) : current_strikeout}}, upsert=True)
 
-                await asyncio.sleep(60 * 15)
+                # TODO: change the time back to 60 * 15
+                await asyncio.sleep(5)
                 await message.author.remove_roles(out)
                 collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
 
