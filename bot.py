@@ -157,7 +157,7 @@ async def floppa_friday():
 async def on_message(message):
     # process all other commands first
     await bot.process_commands(message)
-    if message.author == bot.user or user.bot:
+    if message.author == bot.user or message.author.bot:
         return
 
     collection = db[str(message.guild.id)]
