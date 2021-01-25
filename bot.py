@@ -122,8 +122,7 @@ async def daily_leaderboard():
     # trigger every synday at 20:00 PST --- server is now in PST
     # there has to be a more efficient way to do this
     await sleep_until_hour(20)
-    # TODO: change this back to sunday after sunday night 1/25 8pm
-    while datetime.now().weekday() != 5:
+    while datetime.now().weekday() != 6:
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
