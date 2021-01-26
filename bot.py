@@ -193,21 +193,21 @@ async def on_message(message):
             current_strikes = (collection.find_one({"strikes" : {"$exists" : True}}) or {0:0}).get("strikes", {1:1}).get(str(message.author.id), 0) + 1
 
             if current_strikes < 3:
-                collection.replace_one({"strikes" : {"$exists" : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
+                collection.find_one_and_update({"strikes" : {'$exists' : True}}, {'$set' : {"strikes" : {str(message.author.id) : current_strikes}}}, upsert=True)
                 p = inflect.engine()
                 await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
             else: 
                 await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for an hour.")
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
-                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 3}}, upsert=True)
+                collection.find_one_and_update({"strikes" : {'$exists' : True}}, {'$set' : {"strikes" : {str(message.author.id) : 3}}}, upsert=True)
 
                 current_strikeout = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(message.author.id), 0) + 1
-                collection.replace_one({"strikeouts" : {'$exists' : True}}, {"strikeouts" : {str(message.author.id) : current_strikeout}}, upsert=True)
+                collection.find_one_and_update({"strikeouts" : {'$exists' : True}}, {'$set' : {"strikeouts" : {str(message.author.id) : current_strikeout}}}, upsert=True)
 
                 await asyncio.sleep(60 * 60)
                 await message.author.remove_roles(out)
-                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : 0}}, upsert=True)
+                collection.find_one_and_update({"strikes" : {'$exists' : True}}, {'$set' : {"strikes" : {str(message.author.id) : 0}}}, upsert=True)
 
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
