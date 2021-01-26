@@ -157,8 +157,8 @@ async def floppa_friday():
 async def on_message(message):
     # process all other commands first
     await bot.process_commands(message)
-    # if message.author.bot:
-    #     return
+    if message.author.bot:
+        return
 
     collection = db[str(message.guild.id)]
     counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
