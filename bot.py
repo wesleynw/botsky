@@ -157,7 +157,7 @@ async def floppa_friday():
 async def on_message(message):
     # process all other commands first
     await bot.process_commands(message)
-    if message.author == bot.user or message.author.bot:
+    if message.author.bot:
         return
 
     collection = db[str(message.guild.id)]
@@ -190,10 +190,10 @@ async def on_message(message):
     elif message.channel != story_channel:
         if 'c' in message.content.lower():
             collection = db[str(message.guild.id)]
-            current_strikes = (collection.find_one({"strikes" : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(message.author.id), 0) + 1
+            current_strikes = (collection.find_one({"strikes" : {"$exists" : True}}) or {0:0}).get("strikes", {1:1}).get(str(message.author.id), 0) + 1
 
             if current_strikes < 3:
-                collection.replace_one({"strikes" : {'$exists' : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
+                collection.replace_one({"strikes" : {"$exists" : True}}, {"strikes" : {str(message.author.id) : current_strikes}}, upsert=True)
                 p = inflect.engine()
                 await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
             else: 
@@ -212,7 +212,7 @@ async def on_message(message):
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         # 2% chance of sending a random message
-        if random() < 0.001:
+        if random() < 0.003:
             await message.channel.send(message.author.mention+" "+choice(questions))
 
 @bot.event
