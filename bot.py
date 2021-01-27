@@ -233,7 +233,7 @@ async def ping(ctx):
 async def strikes(ctx, member : discord.Member = None):
     member = member or ctx.author
     collection = db[str(ctx.guild.id)]
-    current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(ctx.author.id), 0)
+    current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(member.id), 0)
     await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
 
 @bot.command()
