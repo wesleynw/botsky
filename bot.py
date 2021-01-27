@@ -6,7 +6,7 @@ import asyncio
 import inflect
 import textwrap
 import traceback
-from re import sub
+from re import sub, compile
 from emoji import demojize
 from random import choice, random
 from datetime import datetime, timedelta
@@ -188,7 +188,7 @@ async def on_message(message):
             mesg = choice(on_error_messages).format(message.author.mention)
             await counting_channel.send(mesg, delete_after=10)
     elif message.channel != story_channel:
-        if 'c' in message.content.lower():
+        if 'c' in message.content.lower() and not _match_url(message.content):
             collection = db[str(message.guild.id)]
             current_strikes = (collection.find_one({"strikes" : {"$exists" : True}}) or {0:0}).get("strikes", {1:1}).get(str(message.author.id), 0) + 1
 
@@ -465,7 +465,14 @@ async def efficiency_bar(percent: float) -> str:
     percent = round(percent/10)
     return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
 
-
+def _match_url(url):
+        regex = compile(
+            r"(([\w]+:)?//)?(([\d\w]|%[a-fA-f\d]{2,2})+(:([\d\w]|%[a-fA-f\d]{2,2})+)?@)?([\d\w][-\d\w]{0,253}[\d\w]\.)+[\w]{2,63}(:[\d]+)?(/([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)*(\?(&?([-+_~.\d\w]|%[a-fA-f\d]{2,2})=?)*)?(#([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)?"
+        )
+        if regex.match(url):
+            return True
+        else:
+            return False
 
 
 ### RUN
