@@ -189,6 +189,8 @@ async def on_message(message):
             await counting_channel.send(mesg, delete_after=10)
     elif message.channel != story_channel:
         if 'c' in message.content.lower() and not _match_url(message.content):
+            if 'OUT' in [x.name for x in message.author.roles]:
+                    return
             collection = db[str(message.guild.id)]
             current_strikes = (collection.find_one({"strikes" : {"$exists" : True}}) or {0:0}).get("strikes", {1:1}).get(str(message.author.id), 0) + 1
 
@@ -200,14 +202,11 @@ async def on_message(message):
                 await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for an hour.")
                 out = get(message.guild.roles, name = 'OUT')
                 await message.author.add_roles(out)
-                collection.update_one({"strikes" : {"$exists" : True}}, {"$set" : {"strikes."+str(message.author.id) : 3}}, upsert=True)
+                collection.update_one({"strikes" : {"$exists" : True}}, {"$set" : {"strikes."+str(message.author.id) : 0}}, upsert=True)
                 current_strikeout = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(message.author.id), 0) + 1
                 collection.update_one({"strikeouts" : {"$exists" : True}}, {"$set" : {"strikeouts."+str(message.author.id) : current_strikeout}}, upsert=True)
-
-
                 await asyncio.sleep(60 * 60)
                 await message.author.remove_roles(out)
-                collection.update_one({"strikes" : {"$exists" : True}}, {"$set" : {"strikes."+str(message.author.id) : 0}}, upsert=True)
 
 
         if 'tuesday' in message.content.lower():
