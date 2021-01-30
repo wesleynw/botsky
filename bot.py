@@ -23,7 +23,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='$', intents=intents)
 
 db_client = MongoClient('localhost',27017)
-db = db_client["discord-db"]
+db = db_client["botsky"]
 
 with open('questions.json') as f:
     questions = json.load(f)
@@ -35,12 +35,13 @@ with open('activities.json') as f:
 async def on_ready():
     logging.info(f'{bot.user.name} has connected to Discord!')
     change_presense.start()
-    count_hourly.start()
-    daily_leaderboard.start()
+    weekly_leaderboard.start()
     floppa_friday.start()
 
 async def is_admin(ctx):
     return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
+
+
 
 
 ### TASKS
@@ -49,29 +50,8 @@ async def change_presense():
     activity = discord.Game(choice(activities))
     await bot.change_presence(activity=activity)
 
-# TODO: make this so it changes per slowmode delay
-@tasks.loop(hours=1)
-async def count_hourly():
-    if datetime.utcnow().minute != 0:
-        await asyncio.sleep((60-datetime.utcnow().minute)*60)
-
-    for guild in bot.guilds:
-        collection = db[str(guild.id)]
-        counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
-        disabled_flag = (collection.find_one({'disable_counting' : {'$exists' : True}}) or {0:0}).get('disable_counting', False)
-        if counting_channel is None or disabled_flag:
-            return
-
-
-        payload = await counting_channel.history(limit=1).flatten()
-        try: 
-            payload = int(sub("[^0-9]", "", payload[0].content)) + 1
-            await counting_channel.send(payload)
-        except ValueError:
-            pass
-
 @tasks.loop(hours=24*7)
-async def daily_leaderboard():  
+async def weekly_leaderboard():  
     # trigger every synday at 20:00 PST --- server is now in PST
     # there has to be a more efficient way to do this
     await sleep_until_hour(20)
@@ -79,27 +59,26 @@ async def daily_leaderboard():
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
-        announcements_channel = bot.get_channel((collection.find_one({'announcements_channel' : {'$exists' : True}}) or {0:0}).get('announcements_channel'))
-        if announcements_channel == None:
+        try: 
+            announcements_channel = bot.get_channel(collection.find_one({"channel" : "announcements"}).get("snowflake"))
+        except: 
             return
-
+        if not announcements_channel: return
         await leaderboard_print(announcements_channel, guild, 'weekly')
 
-@tasks.loop(hours=168)
+@tasks.loop(hours=24*7)
 async def floppa_friday():
-    # trigger every friday at 20 UTC (12:00 PST)
     # there has to be a more efficient way to do this
-    while datetime.now().weekday() != 4:
-        await asyncio.sleep(24 * 60 * 60)
-
+    # trigger every sunday at 20:00 PST
     await sleep_until_hour(20)
+    while datetime.now().weekday() != 6:
+        await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
         try: 
             announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
         except:
             return
-
         await announcements_channel.send(file=discord.File('floppa_friday.mov'))
 
     
@@ -114,52 +93,42 @@ async def on_message(message):
         return
 
     collection = db[str(message.guild.id)]
-    counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
-    story_channel = bot.get_channel((collection.find_one({'story_channel' : {'$exists' : True}}) or {0:0}).get('story_channel'))
+    try: 
+        counting_channel = bot.get_channel(collection.find_one({"channel" : "counting"}).get("snowflake"))
+    except: 
+        counting_channel = None
 
+    p = inflect.engine()
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
-        # for now, all messages need to contain the string 'fix your number'
-        # TODO: find a better way to do this, if error message doesn't contain 'fix your number'
-        on_error_messages = ["Hey {0}! You absolute dumbass! Do you not know how to count? Fix your number.",
-            "{0} are you dense? Please fix your number.",
-            "{0}. Bit sad innit?. The fact that you can't count, I mean. Fix your number.",
-            "{0} you sick fuck, fix your number.",
-            "Hey {0} does _this_ smell like chloroform? Please fix your number 🤡",
-            "{0} i'll permaban you if you don't fix your number.",
-            "You're on thin fucking ice {0}. Don't misstep. Fix your number."]
-
-        latest_mesgs = [x for x in await counting_channel.history(limit=4).flatten() if 'fix your number' not in x.content.lower()]
+        latest_mesgs = [x for x in await counting_channel.history(limit=4).flatten() if "you've counted incorrectly" not in x.content.lower()]
         try: 
             latest_count = int(sub("[^0-9]", "", latest_mesgs[0].content))
             latest_count_2 = int(sub("[^0-9]", "", latest_mesgs[1].content))
         except: 
-            logging.warning("handling exception in on_message")
             latest_count, latest_count_2 = 0, 0
-
-        if latest_count != latest_count_2+1:
-            mesg = choice(on_error_messages).format(message.author.mention)
+        if latest_count != latest_count_2 + 1:
+            mistakes = (collection.find_one({"member" : message.author.id}) or {0:0}).get("mistakes", 0) + 1
+            collection.update_one({"member" : message.author.id}, {"$inc" : {"mistakes" : 1}}, upsert=True)
+            mesg = message.author.mention + " You've counted incorrectly. This is your " + p.ordinal(mistakes) + " mistake. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
-    elif message.channel != story_channel:
-        if 'c' in message.content.lower() and not _match_url(message.content):
-            if 'OUT' in [x.name for x in message.author.roles]:
-                    return
-            collection = db[str(message.guild.id)]
-            current_strikes = (collection.find_one({"strikes" : {"$exists" : True}}) or {0:0}).get("strikes", {1:1}).get(str(message.author.id), 0) + 1
+    elif not message.content.startswith(".") and not message.content.startswith("$") and 'c' in message.content.lower() and not _match_url(message.content):
+        if 'OUT' in [x.name for x in message.author.roles]:
+                return
+        collection = db[str(message.guild.id)]
+        current_strikes = (collection.find_one({"member" : message.author.id}) or {0:0}).get("strikes", 0) + 1
 
-            if current_strikes < 3:
-                collection.update_one({"strikes" : {"$exists" : True}}, {"$set" : {"strikes."+str(message.author.id) : current_strikes}}, upsert=True)
-                p = inflect.engine()
-                await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
-            else: 
-                await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for an hour.")
-                out = get(message.guild.roles, name = 'OUT')
-                await message.author.add_roles(out)
-                collection.update_one({"strikes" : {"$exists" : True}}, {"$set" : {"strikes."+str(message.author.id) : 0}}, upsert=True)
-                current_strikeout = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(message.author.id), 0) + 1
-                collection.update_one({"strikeouts" : {"$exists" : True}}, {"$set" : {"strikeouts."+str(message.author.id) : current_strikeout}}, upsert=True)
-                await asyncio.sleep(60 * 60)
-                await message.author.remove_roles(out)
+        if current_strikes < 3:
+            collection.update_one({"member" : message.author.id}, {"$set" : {"strikes" : current_strikes}}, upsert=True)
+            await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
+        else: 
+            await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for an hour.")
+            out = get(message.guild.roles, name = 'OUT')
+            await message.author.add_roles(out)
+            collection.update_one({"member" : message.author.id}, {"$set" : {"strikes" : 0}})
+            collection.update_one({"member" : message.author.id}, {"$inc" : {"strikeouts" : 1}})
+            await asyncio.sleep(60 * 60)
+            await message.author.remove_roles(out)
 
 
         if 'tuesday' in message.content.lower():
@@ -167,7 +136,6 @@ async def on_message(message):
         # 2% chance of sending a random message
         if random() < 0.003:
             await message.channel.send(message.author.mention+" "+choice(questions))
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
@@ -185,14 +153,14 @@ async def ping(ctx):
 async def strikes(ctx, member : discord.Member = None):
     member = member or ctx.author
     collection = db[str(ctx.guild.id)]
-    current_strikes = (collection.find_one({'strikes' : {'$exists' : True}}) or {0:0}).get('strikes', {0:0}).get(str(member.id), 0)
+    current_strikes = (collection.find_one({"member" : member.id}) or {0:0}).get("strikes", 0)
     await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
 
 @bot.command()
 async def strikeouts(ctx, member : discord.Member = None):
     member = member or ctx.author 
     collection = db[str(ctx.guild.id)]
-    current_strikeouts = (collection.find_one({'strikeouts' : {'$exists' : True}}) or {0:0}).get('strikeouts', {0:0}).get(str(ctx.author.id), 0)
+    current_strikeouts = (collection.find_one({"member" : member.id}) or {0:0}).get("strikeouts", 0)
     if current_strikeouts == 1:
         await ctx.channel.send(f"{member.mention} has {current_strikeouts} strikeout.")
     else:
@@ -201,14 +169,11 @@ async def strikeouts(ctx, member : discord.Member = None):
 @bot.command()
 @commands.check(is_admin)
 async def link(ctx, category : str, channel : discord.TextChannel):
-    channel_types = ['counting', 'announcements', 'onewordstory']
+    channel_types = ['counting', 'announcements']
     if category not in channel_types:
         raise commands.BadArgument
-
-    # replace_one(filter, replacement, upsert=True)
-    channel_str = category + "_channel"
     collection = db[str(ctx.guild.id)]
-    collection.replace_one({channel_str : {'$exists' : True}}, {channel_str : channel.id}, True)
+    collection.replace_one({"channel" : category}, {"channel" : category, "snowflake" : channel.id}, upsert=True)
     await ctx.send(f"The {category} channel has been set to {channel.mention}")
 @link.error
 async def link_error(ctx, error):
@@ -220,12 +185,15 @@ async def leaderboard(ctx, *args):
     await leaderboard_print(ctx.channel, ctx.guild, *args)
 async def leaderboard_print(channel, guild, *args):
     async with channel.typing():
+        collection = db[str(guild.id)]
         try: 
-            collection = db[str(guild.id)]
-            counting_channel = bot.get_channel(collection.find_one({'counting_channel' : {'$exists' : True}}).get('counting_channel'))
+            counting_channel = bot.get_channel(collection.find_one({"channel" : "counting"}).get("snowflake"))
+            if not counting_channel:
+                await no_channel_set(channel, "counting")
         except:
-            await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
+            await no_channel_set(channel, "counting")
             return
+
         now = datetime.utcnow()
         interval = 'Daily'
         if len(args) >= 1:
@@ -276,9 +244,13 @@ async def stats(ctx, member : discord.Member = None):
     member = member or ctx.author 
     async with ctx.channel.typing():
         collection = db[str(ctx.guild.id)]
-        counting_channel = bot.get_channel((collection.find_one({'counting_channel' : {'$exists' : True}}) or {0:0}).get('counting_channel'))
-        if counting_channel is None:
-            await ctx.send('You must set a counting channel using **$link counting** ***#channel***.')
+        try: 
+            counting_channel = bot.get_channel(collection.find_one({"channel" : "counting"}).get("snowflake"))
+            if not counting_channel:
+                await no_channel_set(ctx.channel, "counting")
+                return
+        except:
+            await no_channel_set(ctx.channel, "counting")
             return
 
         now = datetime.utcnow()
@@ -320,41 +292,6 @@ async def stats_error(ctx, error):
         await ctx.send("That member doesn't exist...")
 
 @bot.command()
-async def story(ctx, arg : int = 1):
-    async with ctx.channel.typing():
-        collection = db[str(ctx.guild.id)]
-        story_channel = bot.get_channel((collection.find_one({'onewordstory_channel' : {'$exists' : True}}) or {0:0}).get('onewordstory_channel'))
-        if story_channel is None:
-            await ctx.send('You must set a onewordstory channel using **$link onewordstory** ***#channel***.')
-            return
-
-        text = ''
-        async for message in story_channel.history(limit=None, oldest_first=True):
-            if not message.attachments:
-                text += message.content + ' '
-            else: 
-                text += '$asdf$'
-
-        text = "The " + text.split('$asdf$')[arg]
-        for line in textwrap.wrap(text, width=2000):
-            await ctx.send(line)
-
-@bot.command()
-@commands.check(is_admin)
-async def stop_the_count(ctx):
-    collection = db[str(ctx.guild.id)]
-    collection.replace_one({"disable_counting" : {'$exists' : True}}, {"disable_counting" : True}, upsert=True)
-    await ctx.send('I will now stop counting...')
-
-@bot.command()
-async def start_counting(ctx):        
-    collection = db[str(ctx.guild.id)]
-    collection.replace_one({"disable_counting" : {'$exists' : True}}, {"disable_counting" : False}, upsert=True)
-    await ctx.send('I will now begin counting...')
-
-
-
-@bot.command()
 async def length(ctx, member : discord.Member = None):
     member = member or ctx.author
     length = round(member.id / 10**17, 1)
@@ -370,6 +307,12 @@ async def length(ctx, member : discord.Member = None):
 
 
 ### FUNCTIONS
+async def no_channel_set(channel, category):
+    if category == "counting":
+        await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
+    elif category == "announcements":
+        await channel.send('You must set an announcements channel using **$link announcements** ***#channel***.')
+
 async def sleep_until_hour(hour_utc : int):
     now = datetime.utcnow()
     if now.hour != hour_utc or now.minute != 0:
