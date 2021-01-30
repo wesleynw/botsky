@@ -42,53 +42,6 @@ async def on_ready():
 async def is_admin(ctx):
     return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
 
-@bot.event
-async def on_raw_reaction_add(payload):
-    rules_channel = bot.get_channel(780288110281621505)
-    guild = bot.get_guild(payload.guild_id)
-    member = payload.member
-    emoji = payload.emoji
-
-    if bot.get_channel(payload.channel_id) == rules_channel and member != bot.user:
-        if emoji.name == "💯":
-            role = guild.get_role(771540512825409559) #among us
-            await member.add_roles(role)
-        elif emoji.name == '🔞':
-            role = guild.get_role(777460068035592252) #crack addict
-            await member.add_roles(role)
-        else:
-            #TODO: figure out how to get rid of get() command
-            color_roles = list(get(guild.roles, name=x) for x in ['red', 'orange', 'yellow', 'green', 'blue', 'purple'])
-            wanted_role = [i for i in color_roles if i.name in demojize(payload.emoji.name)][0]
-            current_roles = [x.name for x in member.roles]
-            await member.remove_roles(*[x for x in color_roles if x.name != wanted_role.name and x.name in current_roles])
-            await member.add_roles(wanted_role)
-            
-@bot.event
-async def on_raw_reaction_remove(payload):
-    rules_channel = bot.get_channel(780288110281621505)
-    guild = bot.get_guild(payload.guild_id)
-    member = await guild.fetch_member(payload.user_id)
-    emoji = payload.emoji
-
-    if bot.get_channel(payload.channel_id) == rules_channel:
-        if emoji.name == "✅":
-            role = guild.get_role(780289692918087690) #new
-            await member.add_roles(role)
-        elif emoji.name == "💯":
-            role = guild.get_role(771540512825409559) #among us
-            await member.remove_roles(role)
-        elif emoji.name == '🔞':
-            role = guild.get_role(777460068035592252) #crack addict
-            await member.remove_roles(role)
-        else:
-            color_roles = list(get(guild.roles, name=x) for x in ['red', 'orange', 'yellow', 'green', 'blue', 'purple'])
-            selected_role = [i for i in color_roles if i.name in demojize(payload.emoji.name)][0]
-            current_roles = [x.name for x in member.roles]
-            await member.remove_roles(*[x for x in color_roles if x.name == selected_role.name and x.name in current_roles])
-
-
-
 
 ### TASKS
 @tasks.loop(minutes=15)
