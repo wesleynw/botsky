@@ -129,13 +129,13 @@ async def on_message(message):
             collection.update_one({"member" : message.author.id}, {"$inc" : {"strikeouts" : 1}})
             await asyncio.sleep(60 * 60)
             await message.author.remove_roles(out)
-
-
+    else:
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         # 2% chance of sending a random message
         if random() < 0.003:
             await message.channel.send(message.author.mention+" "+choice(questions))
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
