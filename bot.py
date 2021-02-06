@@ -113,6 +113,7 @@ async def on_message(message):
             mesg = message.author.mention + " You've counted incorrectly. This is your " + p.ordinal(mistakes) + " mistake. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
     elif not message.content.startswith(".") and not message.content.startswith("$") and 'c' in message.content.lower() and not _match_url(message.content):
+        placeholder = 0
         # if message contains c
         # if 'OUT' in [x.name for x in message.author.roles]:
         #         return
