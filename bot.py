@@ -69,17 +69,18 @@ async def weekly_leaderboard():
 @tasks.loop(hours=24*7)
 async def floppa_friday():
     # there has to be a more efficient way to do this
-    # trigger every friday at 12:00 PST
-    await sleep_until_hour(12)
+    # trigger every friday at 13:00 PST
+    await sleep_until_hour(13)
     while datetime.now().weekday() != 4:
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
         try: 
             announcements_channel = bot.get_channel(collection.find_one({"channel" : "announcements"}).get("snowflake"))
+            print(announcements_channel)
         except:
             return 
-
+        print('debug ')
         await announcements_channel.send(file=discord.File('floppa_friday.mov'))
 
     
@@ -315,14 +316,14 @@ async def no_channel_set(channel, category):
     elif category == "announcements":
         await channel.send('You must set an announcements channel using **$link announcements** ***#channel***.')
 
-async def sleep_until_hour(hour_utc : int):
-    now = datetime.utcnow()
-    if now.hour != hour_utc or now.minute != 0:
-        if now.hour < hour_utc:
-            wait_until = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
+async def sleep_until_hour(hour : int):
+    now = datetime.now()
+    if now.hour != hour or now.minute != 0:
+        if now.hour < hour:
+            wait_until = now.replace(hour=hour, minute=0, second=0, microsecond=0)
             await asyncio.sleep((wait_until - now).total_seconds())
         else:
-            wait_until = now.replace(day=now.day+1, hour=hour_utc, minute=0, second=0, microsecond=0)
+            wait_until = now.replace(day=now.day+1, hour=hour, minute=0, second=0, microsecond=0)
             await asyncio.sleep((wait_until - now).total_seconds())
 
 async def calculate_member_stats(members, req_member, channel_history, slowmode_delay, after, before=None):
