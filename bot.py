@@ -69,16 +69,17 @@ async def weekly_leaderboard():
 @tasks.loop(hours=24*7)
 async def floppa_friday():
     # there has to be a more efficient way to do this
-    # trigger every sunday at 20:00 PST
-    await sleep_until_hour(20)
-    while datetime.now().weekday() != 6:
+    # trigger every friday at 12:00 PST
+    await sleep_until_hour(12)
+    while datetime.now().weekday() != 4:
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
         collection = db[str(guild.id)]
         try: 
-            announcements_channel = bot.get_channel(collection.find_one({'announcements_channel' : {'$exists' : True}}).get('announcements_channel'))
+            announcements_channel = bot.get_channel(collection.find_one({"channel" : "announcements"}).get("snowflake"))
         except:
-            return
+            return 
+
         await announcements_channel.send(file=discord.File('floppa_friday.mov'))
 
     
@@ -113,8 +114,7 @@ async def on_message(message):
             mesg = message.author.mention + " You've counted incorrectly. This is your " + p.ordinal(mistakes) + " mistake. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
     elif not message.content.startswith(".") and not message.content.startswith("$") and 'c' in message.content.lower() and not _match_url(message.content):
-        placeholder = 0
-        # if message contains c
+        pass
         # if 'OUT' in [x.name for x in message.author.roles]:
         #         return
         # collection = db[str(message.guild.id)]
