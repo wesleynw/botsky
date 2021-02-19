@@ -100,6 +100,10 @@ async def on_message(message):
     except: 
         counting_channel = None
 
+
+    if message.author.id == 653989587730956329:
+        await message.add_reaction(r"<:disagree:812176461184106498>")
+
     p = inflect.engine()
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
@@ -114,24 +118,6 @@ async def on_message(message):
             collection.update_one({"member" : message.author.id}, {"$inc" : {"mistakes" : 1}}, upsert=True)
             mesg = message.author.mention + " You've counted incorrectly. This is your " + p.ordinal(mistakes) + " mistake. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
-    elif not message.content.startswith(".") and not message.content.startswith("$") and 'c' in message.content.lower() and not _match_url(message.content):
-        pass
-        # if 'OUT' in [x.name for x in message.author.roles]:
-        #         return
-        # collection = db[str(message.guild.id)]
-        # current_strikes = (collection.find_one({"member" : message.author.id}) or {0:0}).get("strikes", 0) + 1
-
-        # if current_strikes < 3:
-        #     collection.update_one({"member" : message.author.id}, {"$set" : {"strikes" : current_strikes}}, upsert=True)
-        #     await message.channel.send(f'{message.author.mention} You have used a forbidden letter. That was your {p.ordinal(current_strikes)} strike.')
-        # else: 
-        #     await message.channel.send(f"{message.author.mention} That was your 3rd strike. You are out. I'm putting you on timeout for an hour.")
-        #     out = get(message.guild.roles, name = 'OUT')
-        #     await message.author.add_roles(out)
-        #     collection.update_one({"member" : message.author.id}, {"$set" : {"strikes" : 0}})
-        #     collection.update_one({"member" : message.author.id}, {"$inc" : {"strikeouts" : 1}})
-        #     await asyncio.sleep(60 * 60)
-        #     await message.author.remove_roles(out)
     else:
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
