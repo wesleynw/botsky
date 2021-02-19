@@ -102,7 +102,7 @@ async def on_message(message):
 
 
     if message.author.id == 653989587730956329:
-        await message.add_reaction(r"<:disagree:812176461184106498>")
+        await message.add_reaction(r"<:disagree:775697383735558175>")
 
     p = inflect.engine()
     # check if someone counted incorrectly in the counting channel
