@@ -100,9 +100,6 @@ async def on_message(message):
     except: 
         counting_channel = None
 
-
-    await message.add_reaction(r"<:disagree:775697383735558175>")
-
     p = inflect.engine()
     # check if someone counted incorrectly in the counting channel
     if message.channel == counting_channel:
