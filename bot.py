@@ -78,7 +78,6 @@ async def floppa_friday():
             print(announcements_channel)
         except:
             return 
-        print('debug ')
         await announcements_channel.send(file=discord.File('floppa_friday.mov'))
 
     
