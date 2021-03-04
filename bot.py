@@ -6,7 +6,7 @@ import asyncio
 import inflect
 import textwrap
 import traceback
-from re import sub, compile
+from re import sub
 from emoji import demojize
 from random import choice, random
 from datetime import datetime, timedelta
@@ -37,9 +37,6 @@ async def on_ready():
     change_presense.start()
     weekly_leaderboard.start()
     floppa_friday.start()
-
-async def is_admin(ctx):
-    return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
 
 
 
@@ -94,7 +91,6 @@ async def on_message(message):
     if message.author.bot:
         return
 
-
     collection = db[str(message.guild.id)]
     try:
         counting_channel = bot.get_channel(collection.find_one({"channel" : "counting"}).get("snowflake"))
@@ -102,11 +98,7 @@ async def on_message(message):
         counting_channel = None
 
     p = inflect.engine()
-    # someone has counted in the counting channel
     if message.channel == counting_channel:
-        # store new message in db
-        # TODO: fix this, push isn't working correctly and I changed the db behavior 
-        # collection.update_one({"member" : message.author.id}, {"$push" : {"messages" : {"$each" : message.created_at}}})
         collection.update_one({"counting_history" : {"$exists" : 1}}, {"$push" : {"counting_history" : [message.author.id, message.created_at]}}, upsert=True)
         latest_mesgs = [x for x in await counting_channel.history(limit=4).flatten() if "you've counted incorrectly" not in x.content.lower()]
         try: 
@@ -125,7 +117,6 @@ async def on_message(message):
         # 2% chance of sending a random message
         if random() < 0.003:
             await message.channel.send(message.author.mention+" "+choice(questions))
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
@@ -138,23 +129,6 @@ async def on_command_error(ctx, error):
 @bot.command()
 async def ping(ctx):
     await ctx.send(f'Pong! **{round(bot.latency, 3)}ms**.')
-
-@bot.command()
-async def strikes(ctx, member : discord.Member = None):
-    member = member or ctx.author
-    collection = db[str(ctx.guild.id)]
-    current_strikes = (collection.find_one({"member" : member.id}) or {0:0}).get("strikes", 0)
-    await ctx.channel.send(f"{member.mention} has {current_strikes} strikes.")
-
-@bot.command()
-async def strikeouts(ctx, member : discord.Member = None):
-    member = member or ctx.author 
-    collection = db[str(ctx.guild.id)]
-    current_strikeouts = (collection.find_one({"member" : member.id}) or {0:0}).get("strikeouts", 0)
-    if current_strikeouts == 1:
-        await ctx.channel.send(f"{member.mention} has {current_strikeouts} strikeout.")
-    else:
-        await ctx.channel.send(f"{member.mention} has {current_strikeouts} strikeouts.")
 
 @bot.command()
 @commands.check(is_admin)
@@ -241,7 +215,6 @@ async def index_messages(ctx):
         return
     
     mesg = await ctx.channel.send(f"Please wait... Indexing 0 messages in {counting_channel.mention}")
-    messages = []
     counter = 0
     collection.delete_many({"counting_history" : {"$exists" : 1}})
     async for message in counting_channel.history(limit=None, oldest_first=True):
@@ -252,8 +225,6 @@ async def index_messages(ctx):
         collection.update_one({"counting_history" : {"$exists" : 1}}, {"$push" : {"counting_history" : [message.author.id, message.created_at]}}, upsert=True)
         counter += 1
     await mesg.edit(content=f"Finished! Indexed {counter} messages in {counting_channel.mention}")
-
-
 
 @bot.command()
 async def stats(ctx, member : discord.Member = None):
@@ -322,6 +293,9 @@ async def length(ctx, member : discord.Member = None):
 
 
 ### FUNCTIONS
+async def is_admin(ctx):
+    return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
+
 async def no_channel_set(channel, category):
     if category == "counting":
         await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
@@ -375,16 +349,7 @@ async def efficiency_bar(percent: float) -> str:
     percent = round(percent/10)
     return '[■](https://youtu.be/dQw4w9WgXcQ)'*min(10, percent) + '[□](https://youtu.be/dQw4w9WgXcQ)'*(10-percent)
 
-def _match_url(url):
-    """from https://stackoverflow.com/questions/58211619/how-to-check-for-hyperlinks-in-the-contents-of-a-message-through-discord-py-pre
-    """
-    regex = compile(
-        r"(([\w]+:)?//)?(([\d\w]|%[a-fA-f\d]{2,2})+(:([\d\w]|%[a-fA-f\d]{2,2})+)?@)?([\d\w][-\d\w]{0,253}[\d\w]\.)+[\w]{2,63}(:[\d]+)?(/([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)*(\?(&?([-+_~.\d\w]|%[a-fA-f\d]{2,2})=?)*)?(#([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)?"
-    )
-    if regex.match(url):
-        return True
-    else:
-        return False
+
 
 
 ### RUN
