@@ -38,7 +38,8 @@ async def on_ready():
     weekly_leaderboard.start()
     floppa_friday.start()
 
-
+async def is_admin(ctx):
+    return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
 
 
 ### TASKS
@@ -293,9 +294,6 @@ async def length(ctx, member : discord.Member = None):
 
 
 ### FUNCTIONS
-async def is_admin(ctx):
-    return ctx.author.guild_permissions.administrator or ctx.author.id == 184880932476420097
-
 async def no_channel_set(channel, category):
     if category == "counting":
         await channel.send('You must set a counting channel using **$link counting** ***#channel***.')
