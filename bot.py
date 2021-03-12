@@ -68,7 +68,7 @@ async def weekly_leaderboard():
 async def floppa_friday():
     # there has to be a more efficient way to do this
     # trigger every friday at 13:00 PST
-    await sleep_until_hour(13)
+    await sleep_until_hour(9)
     while datetime.now().weekday() != 4:
         await asyncio.sleep(24 * 60 * 60)
     for guild in bot.guilds:
