@@ -122,8 +122,10 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send("You don't have permission to run this command...")
 
-
-
+@bot.event
+async def on_reaction_add(reaction, user):
+    if reaction.emoji == "⭐" and reaction.message.attachments:
+        await user.send(reaction.message.attachments[0].url)
 
 ### COMMANDS
 @bot.command()
