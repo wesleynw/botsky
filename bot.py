@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from discord.utils import get
 from discord.ext import commands, tasks
 from pymongo import MongoClient
+from word2number import w2n
 
 logging.basicConfig(level=logging.INFO)
 
@@ -102,10 +103,15 @@ async def on_message(message):
         collection.update_one({"counting_history" : {"$exists" : 1}}, {"$push" : {"counting_history" : [message.author.id, message.created_at]}}, upsert=True)
         latest_mesgs = [x for x in await counting_channel.history(limit=4).flatten() if "you've counted incorrectly" not in x.content.lower()]
         try: 
-            latest_count = int(sub("[^0-9]", "", latest_mesgs[0].content))
-            latest_count_2 = int(sub("[^0-9]", "", latest_mesgs[1].content))
-        except: 
-            latest_count, latest_count_2 = 0, 0
+            latest_count = int(sub("[^0-9]", "", latest_mesgs[0].content)) or w2n.word_to_num(latest_mesgs[0].content)
+            latest_count_2 = int(sub("[^0-9]", "", latest_mesgs[1].content)) or w2n.word_to_num(latest_mesgs[1].content)
+        except ValueError:
+            try:
+                latest_count = w2n.word_to_num(latest_mesgs[0].content)
+                latest_count_2 = w2n.word_to_num(latest_mesgs[1].content)
+            except ValueError:
+                latest_count, latest_count_2 = 0, 0
+                
         if latest_count != latest_count_2 + 1:
             mistakes = (collection.find_one({"member" : message.author.id}) or {0:0}).get("mistakes", 0) + 1
             collection.update_one({"member" : message.author.id}, {"$inc" : {"mistakes" : 1}}, upsert=True)
@@ -122,6 +128,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send("You don't have permission to run this command...")
 
+# TODO: possibly add on_raw_reaction_add to work for older messages
 @bot.event
 async def on_reaction_add(reaction, user):
     if reaction.emoji == "⭐" and reaction.message.attachments:
