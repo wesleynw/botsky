@@ -3,3 +3,4 @@ pymongo
 emoji
 inflect
 word2number
+python-dotenv
