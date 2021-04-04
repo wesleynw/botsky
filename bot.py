@@ -101,18 +101,33 @@ async def on_message(message):
     p = inflect.engine()
     if message.channel == counting_channel:
         collection.update_one({"counting_history" : {"$exists" : 1}}, {"$push" : {"counting_history" : [message.author.id, message.created_at]}}, upsert=True)
-        latest_mesgs = [x for x in await counting_channel.history(limit=4).flatten() if "you've counted incorrectly" not in x.content.lower()]
-        try: 
-            latest_count = int(sub("[^0-9]", "", latest_mesgs[0].content)) or w2n.word_to_num(latest_mesgs[0].content)
-            latest_count_2 = int(sub("[^0-9]", "", latest_mesgs[1].content)) or w2n.word_to_num(latest_mesgs[1].content)
-        except ValueError:
-            try:
-                latest_count = w2n.word_to_num(latest_mesgs[0].content)
-                latest_count_2 = w2n.word_to_num(latest_mesgs[1].content)
-            except ValueError:
-                latest_count, latest_count_2 = 0, 0
-                
-        if latest_count != latest_count_2 + 1:
+        latest_mesgs = [x.content for x in await counting_channel.history(limit=5).flatten() if "you've counted incorrectly" not in x.content.lower()]
+
+        async def convert(n : str) -> int:
+            """Converts n into an integer
+            from str, binary, or written out text
+            """
+            async def is_binary(n : str):
+                t = '01'
+                for char in n:
+                    if char not in t:
+                        return False
+                return True
+
+            if await is_binary(n):
+                return int(n, base=2)
+            elif any(map(str.isdigit, n)):
+                try: 
+                    return int(sub("[^0-9]", "", n))
+                except ValueError:
+                    return 0
+            else:
+                try:
+                    return w2n.word_to_num(n)
+                except ValueError:
+                    return 0
+
+        if await convert(latest_mesgs[0]) != await convert(latest_mesgs[1]) + 1:
             mistakes = (collection.find_one({"member" : message.author.id}) or {0:0}).get("mistakes", 0) + 1
             collection.update_one({"member" : message.author.id}, {"$inc" : {"mistakes" : 1}}, upsert=True)
             mesg = message.author.mention + " You've counted incorrectly. This is your " + p.ordinal(mistakes) + " mistake. Please fix your number."
@@ -121,7 +136,7 @@ async def on_message(message):
         if 'tuesday' in message.content.lower():
             await message.channel.send(file=discord.File('tueday.png'))
         # 2% chance of sending a random message
-        if random() < 0.003:
+        if random() < 0.005:
             await message.channel.send(message.author.mention+" "+choice(questions))
 @bot.event
 async def on_command_error(ctx, error):
