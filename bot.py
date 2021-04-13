@@ -281,7 +281,8 @@ async def stats(ctx, member : discord.Member = None):
     oldest_time = counting_channel_history[0][1]
     all_time = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, oldest_time)
 
-    embed = discord.Embed(color=member.color)
+    color = 0x3498db if member.color == discord.Color.default() else member.color
+    embed = discord.Embed(color=color)
     embed.set_author(name=member.name+"'s stats", icon_url=member.avatar_url)
     embed.set_footer(text="Counted a total of " + str(all_time[3]) + " times.")
 
