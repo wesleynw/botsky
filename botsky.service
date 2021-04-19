@@ -8,7 +8,6 @@ WantedBy=multi-user.target
 [Service]
 WorkingDirectory=/home/wesley/botsky
 ExecStart=/usr/bin/python3 bot.py
-Environment="DISCORDTOKEN=..."
 User=wesley
 Restart=always
 RestartSec=5
