@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 token = os.environ.get('DISCORDTOKEN')
 intents = discord.Intents().default()
 intents.members = True
+# intents.members = True
 bot = commands.Bot(command_prefix='$', intents=intents, help_command=None)
 db_client = MongoClient('localhost',27017)
 db = db_client["botsky"]
@@ -52,6 +53,13 @@ async def weekly_leaderboard():
 
 
 ### EVENTS
+@bot.event
+async def on_guild_join(guild):
+    for channel in guild.text_channels:
+        if channel.permissions_for(guild.me).send_messages:
+            await channel.send("Hey there! I'm botsky and I will review this server's counting channel. To get started, run **$link counting *#channel*** and **$index-messages**.")
+        break
+
 @bot.event
 async def on_message(message):
     # process all other commands first
@@ -91,7 +99,6 @@ async def on_message(message):
                     return w2n.word_to_num(n)
                 except ValueError:
                     return 0
-
         if await convert(latest_mesgs[0]) != await convert(latest_mesgs[1]) + 1:
             mesg = message.author.mention + " You've counted incorrectly. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
@@ -101,6 +108,12 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send("You don't have permission to run this command...")
 
+@bot.event 
+async def on_raw_message_delete(payload):
+    if payload.channel_id == (await db_get_channel(payload.guild_id, 'counting')).id:
+        msg = payload.cached_message
+        coll = db['guild_message_history']
+        coll.update_one({"_id" : payload.guild_id}, {"$pull" : {"messages" : [msg.author.id, msg.created_at]}})
 
 
 
@@ -112,14 +125,14 @@ async def ping(ctx):
 @bot.command()
 async def help(ctx):
     embed=discord.Embed(title="⭐ botsky help ⭐", description="______", color=0x3498db)
-    embed.add_field(name="$stats [optional: @user]", value="Displays the counting stats of either the user who called the command or whoever is mentioned.", inline=False)
-    embed.add_field(name="$leaderboard [optional: daily/weekly/monthly/all]", value="Displays a 5 person leaderboard for the time period selected. If not time period is selected defaults to daily.", inline=False)
-    embed.add_field(name="$link [counting/announcements]", value="Can only be run by an admin. This needs to be run prior to running the $stats or $leaderboard command. Links a counting channel or an announcements channel to send the weekly leaderboard.", inline=False)
-    embed.add_field(name="$index-messages", value="Can only be run by an admin. This needs to be run prior to running the $stats or $leaderboard command. It may take a minute.", inline=False)
-    embed.add_field(name="$enable/$disable [counting-errors/weekly-leaderboard]", value="Can only be run by an admin. Enable/Disable errors when someone counts incorrectly in the counting channel or the weekly leaderboard.", inline=False)
-    embed.add_field(name="$feedback", value="Send feedback to Wesley, the creator of this bot.", inline=False)
-    embed.add_field(name="$length", value="Self explanatory.", inline=False)
-    embed.add_field(name="$ping", value="Self explanatory.", inline=False)
+    embed.add_field(name="📈 $stats [optional: @user]", value="Displays the counting stats of either the user who called the command or whoever is mentioned.", inline=False)
+    embed.add_field(name="🏆 $leaderboard [optional: daily/weekly/monthly/all]", value="Displays a 5 person leaderboard for the time period selected. If not time period is selected defaults to daily.", inline=False)
+    embed.add_field(name="⛓ $link [counting/announcements]", value="Can only be run by an admin. This needs to be run prior to running the $stats or $leaderboard command. Links a counting channel or an announcements channel to send the weekly leaderboard.", inline=False)
+    embed.add_field(name="✍️ $index-messages", value="Can only be run by an admin. This needs to be run prior to running the $stats or $leaderboard command. It may take a minute.", inline=False)
+    embed.add_field(name="✅ 🚫 $enable/$disable [counting-errors/weekly-leaderboard]", value="Can only be run by an admin. Enable/Disable errors when someone counts incorrectly in the counting channel or the weekly leaderboard.", inline=False)
+    embed.add_field(name="🗣️ $feedback", value="Send feedback to Wesley, the creator of this bot.", inline=False)
+    embed.add_field(name="📏 $length", value="Self explanatory.", inline=False)
+    embed.add_field(name="🏓 $ping", value="Self explanatory.", inline=False)
     embed.add_field(name="______", value="https://github.com/wesleynw/botsky", inline=False)
     await ctx.send(embed=embed)
 
@@ -178,7 +191,7 @@ async def leaderboard_print(channel, guild, *args):
         await channel.send("Please run **$index-messages** so I can view your past counting channel messages.")
     counting_channel_history = params.get('messages')
 
-    ranks_and_efficiency = await calculate_member_stats(guild.members, None, counting_channel_history, slowmode, now - td)
+    ranks_and_efficiency = await get_member_stats(guild.members, None, counting_channel_history, slowmode, now - td)
 
     embed = discord.Embed(color=0x3498db)
     embed.add_field(name=f'{interval} Leaderboard 💯', value='___', inline=False)
@@ -230,6 +243,9 @@ async def stats(ctx, member : discord.Member = None):
         return
     slowmode = counting_channel.slowmode_delay
 
+    if slowmode == 0:
+        await ctx.send('To calculate stats, the counting channel must have slowmode on...')
+        return 
     coll = db['guild_message_history']
     params = coll.find_one({"_id" : ctx.guild.id})
     if not (params and params.get('messages')):
@@ -238,16 +254,17 @@ async def stats(ctx, member : discord.Member = None):
 
     now = datetime.utcnow()
     # returns in format: [member, rank, efficiency]
-    daily_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=1))
-    prev_daily_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=2), now - timedelta(days=1))
-    weekly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=1))
-    prev_weekly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=2), now - timedelta(weeks=1))
 
-    monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=4))
-    prev_monthly_stats = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=8), now - timedelta(weeks=4))
+    daily_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=1))
+    prev_daily_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(days=2), now - timedelta(days=1))
+    weekly_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=1))
+    prev_weekly_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=2), now - timedelta(weeks=1))
+
+    monthly_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=4))
+    prev_monthly_stats = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, now - timedelta(weeks=8), now - timedelta(weeks=4))
 
     oldest_time = counting_channel_history[0][1]
-    all_time = await calculate_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, oldest_time)
+    all_time = await get_member_stats(ctx.guild.members, member, counting_channel_history, slowmode, oldest_time)
 
     color = 0x3498db if member.color == discord.Color.default() else member.color
     embed = discord.Embed(color=color)
@@ -350,10 +367,9 @@ async def sleep_until_hour(hour : int):
             wait_until = now.replace(day=now.day+1, hour=hour, minute=0, second=0, microsecond=0)
             await asyncio.sleep((wait_until - now).total_seconds())
 
-async def calculate_member_stats(members, req_member, channel_history, slowmode_delay, after, before=None):
+async def get_member_stats(members, req_member, channel_history, slowmode_delay, after, before=None):
     if before is None:
         before = datetime.utcnow()
-
     channel_history = [x[0] for x in channel_history if x[1] > after and x[1] < before]
     # .slowmode_delay is in seconds
     possible_counts_interval = round((before - after).total_seconds() / slowmode_delay)
@@ -368,7 +384,6 @@ async def calculate_member_stats(members, req_member, channel_history, slowmode_
 
     # sort efficiencies low to high
     efficiency_stats = sorted(stats, key=lambda x: x[1], reverse=True)
-
     # if req_member is set to None, then return all stats, sorted
     if req_member is None:
         ranks_and_efficiency = []
