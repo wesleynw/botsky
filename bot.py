@@ -185,6 +185,9 @@ async def leaderboard_print(channel, guild, *args):
 
     now = datetime.utcnow()
     slowmode = counting_channel.slowmode_delay
+    if slowmode == 0:
+        await channel.send('To show the leaderboard, the counting channel must have slowmode on...')
+        return
     coll = db['guild_message_history']
     params = coll.find_one({"_id" : guild.id})
     if not (params and params.get('messages')):
@@ -209,7 +212,7 @@ async def leaderboard_print(channel, guild, *args):
     coll = db['guild_parameters']
     for guild in bot.guilds:
         opts = coll.find_one({"_id" : guild.id})
-        if not (opts and "announcements" in opts  and bot.get_channel(opts["announcements"])):
+        if not (opts and "announcements" in opts and bot.get_channel(opts["announcements"])):
             await no_channel_set(channel, 'announcements')
 
 @bot.command(name='index-messages')
@@ -242,7 +245,6 @@ async def stats(ctx, member : discord.Member = None):
         await no_channel_set(ctx.channel, 'counting')
         return
     slowmode = counting_channel.slowmode_delay
-
     if slowmode == 0:
         await ctx.send('To calculate stats, the counting channel must have slowmode on...')
         return 
@@ -348,8 +350,6 @@ async def db_get_channel(guild_id : int, channel_type : str) -> discord.TextChan
     if params and channel_type in params and bot.get_channel(params[channel_type]):
         return bot.get_channel(params[channel_type])
 
-async def set_announcements_channel_reminder(channel):
-    await channel.send('By the way, you should link an announcements channel using **$link announcements *#channel*')
 async def no_channel_set(mesg_channel : discord.TextChannel, category : str):
     """Send a message to mesg_channel announcing that a certain channel must be set."""
     if category == "counting":
@@ -372,8 +372,7 @@ async def get_member_stats(members, req_member, channel_history, slowmode_delay,
         before = datetime.utcnow()
     channel_history = [x[0] for x in channel_history if x[1] > after and x[1] < before]
     # .slowmode_delay is in seconds
-    possible_counts_interval = round((before - after).total_seconds() / slowmode_delay)
-
+    possible_counts_interval = max(round((before - after).total_seconds() / slowmode_delay), 1)
     stats = []
     for member in members:
         counter = 0
@@ -381,7 +380,6 @@ async def get_member_stats(members, req_member, channel_history, slowmode_delay,
             if message == member.id:
                 counter +=1
         stats.append([member, round(counter / possible_counts_interval * 100, 2), counter])
-
     # sort efficiencies low to high
     efficiency_stats = sorted(stats, key=lambda x: x[1], reverse=True)
     # if req_member is set to None, then return all stats, sorted
