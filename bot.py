@@ -102,6 +102,8 @@ async def on_message(message):
         if await convert(latest_mesgs[0]) != await convert(latest_mesgs[1]) + 1:
             mesg = message.author.mention + " You've counted incorrectly. Please fix your number."
             await counting_channel.send(mesg, delete_after=10)
+        if latest_mesgs[0] == "6968" and latest_mesgs[1] == "6967":
+            await counting_channel.send("6969")
 
 @bot.event
 async def on_command_error(ctx, error):
